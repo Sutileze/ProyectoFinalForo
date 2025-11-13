@@ -7,6 +7,9 @@ urlpatterns = [
 
     path('plataforma/', views.plataforma_comerciante_view, name='plataforma_comerciante'),
     
-    # También verifica que tengas la URL 'login' (necesaria para el redirect)
+    # URL para la vista de login
     path('login/', views.login_view, name='login'), 
+    
+    # NUEVA URL para crear publicaciones
+    path('publicar/', views.crear_publicacion_view, name='crear_publicacion'),
 ]

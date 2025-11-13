@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html class="light" lang="es">
 <head>
@@ -5,40 +6,52 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>Plataforma de Comerciantes</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    
     <script id="tailwind-config">
         tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#005A9C",
-                        "secondary": "#FF9800",
-                        "background-light": "#F4F6F8",
-                        "background-dark": "#101c22",
-                        "text-light": "#333333",
-                        "text-dark": "#F4F6F8",
-                        "text-muted-light": "#666666",
-                        "text-muted-dark": "#a0aec0",
-                    },
-                    fontFamily: {
-                        "display": ["Work Sans", "sans-serif"],
-                    },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-                },
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#005A9C",
+                "secondary": "#FF9800",
+                "background-light": "#F4F6F8",
+                "background-dark": "#101c22",
+                "text-light": "#333333",
+                "text-dark": "#F4F6F8",
+                "text-muted-light": "#666666",
+                "text-muted-dark": "#a0aec0",
+              },
+              fontFamily: {
+                "display": ["Work Sans", "sans-serif"],
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
             },
+          },
         }
     </script>
+    
+    <style>
+        .off-canvas-panel {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%); /* Oculto a la derecha */
+        }
+        .off-canvas-panel.active {
+            transform: translateX(0); /* Visible */
+        }
+        /* Asumimos que los estilos de los iconos Material Symbols se cargan con el enlace de fuentes */
+    </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display">
     <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
         <div class="layout-container flex h-full grow flex-col">
             <header class="flex items-center justify-between whitespace-nowrap bg-white dark:bg-background-dark border-b border-solid border-gray-200 dark:border-gray-700 px-10 py-3 shadow-sm sticky top-0 z-50">
                 <div class="flex items-center gap-8">
-                    <div class="flex items-center gap-3 text-primary">
-                        <span class="material-symbols-outlined text-3xl">store</span>
-                        <h2 class="text-text-light dark:text-text-dark text-xl font-bold leading-tight tracking-[-0.015em]">Plataforma de Comerciantes</h2>
+                    <div class="flex items-center gap-3">
+                        <img src="{% static 'img/logoClubAlmacen.png' %}" alt="Logo de la Plataforma" class="h-24 w-auto"/>
                     </div>
                 </div>
                 <div class="flex-1 max-w-lg">
@@ -61,11 +74,23 @@
                     <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDHvwpnyqsHNE26vkYQRDmOsew1FmzE3huwOaXD81x6WwS7HFCzXdHlZUvxWPCLNDmbF_WpXbtsYq3_IhaPtE2CX7wkVRRZ-VeelbmqdGL2EBD3TKyZh52brWhNx8fpI8AUeqVTjCvLo2B2fhwjfL5C8GcEM7SS0_dEc_6Fp-Yhs0vZ5qfHKjCBte92VGlDQ9-2Hby5UgjwJ_1vulv4AOkL4JrTAYhgnVkJfISkGR40K2CPcLxNYRM0SSdi7tcnRjjjq-oGW3MyzQ");'></div>
                 </div>
             </header>
+            
             <main class="flex-1 w-full max-w-screen-2xl mx-auto p-6 lg:p-8">
+                {% if messages %}
+                    <div class="mb-6">
+                    {% for message in messages %}
+                        <div class="p-3 rounded-lg text-sm {% if message.tags == 'error' %}bg-red-100 text-red-700 border border-red-300{% elif message.tags == 'success' %}bg-green-100 text-green-700 border border-green-300{% else %}bg-blue-100 text-blue-700 border border-blue-300{% endif %} mb-2">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+
                 <div class="grid grid-cols-12 gap-8">
-                    <aside class="col-span-12 lg:col-span-3">
+                    
+                    <aside class="col-span-12 lg:col-span-3 order-2 lg:order-1">
                         <div class="space-y-8">
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                            <div class="bg-white dark:bg-white p-6 rounded-xl shadow-sm">
                                 <h3 class="text-text-light dark:text-text-dark text-lg font-bold mb-4">Accesos Rápidos</h3>
                                 <div class="flex flex-col gap-2">
                                     <a class="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 text-text-light dark:text-text-dark transition-colors duration-200" href="#">
@@ -90,86 +115,92 @@
                                     </a>
                                 </div>
                             </div>
-                        </div>
-                    </aside>
-                    <main class="col-span-12 lg:col-span-6">
-                        <div class="space-y-8">
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h2 class="text-text-light dark:text-text-dark text-2xl font-bold tracking-[-0.015em]">Foro de la Comunidad</h2>
-                                    <button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-secondary text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] hover:bg-secondary/90 transition-colors duration-200">
-                                        <span class="material-symbols-outlined">add</span>
-                                        <span class="truncate">Crear publicación</span>
-                                    </button>
-                                </div>
+                             <div class="bg-white dark:bg-white p-6 rounded-xl shadow-sm">
+                                <h3 class="text-text-light dark:text-text-dark text-lg font-bold mb-4">Actividad Reciente</h3>
                                 <div class="space-y-4">
-                                    <div class="flex gap-4 bg-transparent dark:bg-gray-800 p-4 justify-between border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg -mx-4">
-                                        <div class="flex items-start gap-4">
-                                            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Avatar de Juan Pérez" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC0vWDVWiPXBf7-DPzOiGeqPX3ZKa-IG0Um3B_71IhkBkOIB-uRX-wpwgI_QV5whFdhW0hC9jdO89E2uSsm75TZXFsjKKWkRomIE-O7RPo5ORdZUWCDuHDpZVdMGshJmZyIwogoksh7B1yzKE4ekZR-jj_Y5sMrp-zJyY9lHXIkwOwZ34Y091nhGqMjgxhxpl0IIu4MehU4wj4tFnDew7UCgOnENIIHPFuOvE1WVwfeCIaa_N8VlJ2LY35TSCK3ZswWqIAaehqbIw");'></div>
-                                            <div class="flex flex-1 flex-col justify-center">
-                                                <p class="text-text-light dark:text-text-dark text-base font-semibold leading-normal hover:text-primary cursor-pointer">Consejos para mejorar la visibilidad de mi tienda</p>
-                                                <p class="text-text-muted-light dark:text-text-muted-dark text-sm font-normal leading-normal mt-1">Estoy buscando maneras de atraer más clientes. ¿Qué estrategias les han funcionado a ustedes?</p>
-                                                <p class="text-text-muted-light dark:text-text-muted-dark text-xs font-normal leading-normal mt-2">Juan Pérez - hace 2 horas</p>
-                                            </div>
-                                        </div>
-                                        <div class="shrink-0 flex flex-col items-end justify-center text-sm text-text-muted-light dark:text-text-muted-dark">
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-base">forum</span>
-                                                <span>15</span>
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-base">thumb_up</span>
-                                                <span>32</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-4 bg-transparent dark:bg-gray-800 p-4 justify-between border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg -mx-4">
-                                        <div class="flex items-start gap-4">
-                                            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Avatar de Ana García" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDJ7QDSrHnBAXicu-zC5haDWm70p6CdCnAU7x6YrAQteDCcfvnTO2ISoZS4G1J-L9XSmBnzgWMT2RvxH7Wa-fxvb9pEbU30A1aqszNmZFfAcloa_mWOJdYrB3EccnHgwho34L4MjO__Jo86Bo7fymGfSl9uFP1JSYq53xIz-XnOFozGUfdO3okgZoJqmDJkIBXEF_uPwtYYf4ieSdc4lrvRY9m79APF6O4ULaLemTj1NYUzteugqtq_atYsK-srj8qfIT1BSZog3Q");'></div>
-                                            <div class="flex flex-1 flex-col justify-center">
-                                                <p class="text-text-light dark:text-text-dark text-base font-semibold leading-normal hover:text-primary cursor-pointer">¿Alguien conoce un buen proveedor de productos locales?</p>
-                                                <p class="text-text-muted-light dark:text-text-muted-dark text-sm font-normal leading-normal mt-1">Necesito encontrar un proveedor de frutas y verduras frescas y de calidad para mi frutería.</p>
-                                                <p class="text-text-muted-light dark:text-text-muted-dark text-xs font-normal leading-normal mt-2">Ana García - hace 5 horas</p>
-                                            </div>
-                                        </div>
-                                        <div class="shrink-0 flex flex-col items-end justify-center text-sm text-text-muted-light dark:text-text-muted-dark">
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-base">forum</span>
-                                                <span>8</span>
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-base">thumb_up</span>
-                                                <span>19</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-4 bg-transparent dark:bg-gray-800 p-4 justify-between border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg -mx-4">
-                                        <div class="flex items-start gap-4">
-                                            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Avatar de Carlos Ruiz" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBRFJhTSCkGmM_2FD-FiEV_o_HyeqGGLnyRS2IfGQIa_rHAPdbF0H1_yJ2_wnOPkx2dot34yEk9vbYs_wpRCPG35NIOgESyW08--4S9Mc7CaytbSUcOLp-6WJ8K7nWKg0wxR1zjnYvJjMh_1SCuV9FBYVwvMb_tQDlzpEWPlkxeI81a5-kW54zIhoDj3Ych9ELxqykdSTOXLH-jIBYjBv4g4Me46GDpSPYWKZp1QOtC4hShHYa19g9x5MikXFtMDCZLP0VZD7dmDQ");'></div>
-                                            <div class="flex flex-1 flex-col justify-center">
-                                                <p class="text-text-light dark:text-text-dark text-base font-semibold leading-normal hover:text-primary cursor-pointer">Debate: Nuevas regulaciones municipales</p>
-                                                <p class="text-text-muted-light dark:text-text-muted-dark text-sm font-normal leading-normal mt-1">¿Qué opinan sobre las nuevas normativas de terrazas? Compartamos puntos de vista.</p>
-                                                <p class="text-text-muted-light dark:text-text-muted-dark text-xs font-normal leading-normal mt-2">Carlos Ruiz - hace 1 día</p>
-                                            </div>
-                                        </div>
-                                        <div class="shrink-0 flex flex-col items-end justify-center text-sm text-text-muted-light dark:text-text-muted-dark">
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-base">forum</span>
-                                                <span>25</span>
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-base">thumb_up</span>
-                                                <span>41</span>
-                                            </div>
-                                        </div>
+                                    <div class="flex items-start gap-3">
+                                        <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark mt-1">chat_bubble</span>
+                                        <p class="text-text-muted-light dark:text-text-muted-dark text-sm">
+                                            <span class="font-semibold text-text-light dark:text-text-dark">María</span> comentó en '<span class="text-primary font-medium">Debate sobre horarios</span>'
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </main>
-                    <aside class="col-span-12 lg:col-span-3">
+                    </aside>
+
+                    <main class="col-span-12 lg:col-span-6 order-1 lg:order-2">
                         <div class="space-y-8">
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                            <div class="bg-white dark:bg-white rounded-xl shadow-sm p-6">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                                    <h2 class="text-text-light dark:text-text-dark text-2xl font-bold tracking-[-0.015em] shrink-0">Foro de la Comunidad</h2>
+                                    
+                                    <form method="GET" action="{% url 'plataforma_comerciante' %}" class="w-full sm:w-auto flex items-center justify-end">
+                                        <label for="categoria-filtro" class="text-text-muted-light dark:text-text-muted-dark text-sm mr-2 shrink-0 hidden sm:block">Filtrar:</label>
+                                        <select name="categoria" id="categoria-filtro" onchange="this.form.submit()"
+                                            class="form-select text-text-light dark:text-text-dark border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg focus:ring-primary focus:border-primary">
+                                            <option value="TODAS" {% if categoria_seleccionada == 'TODAS' %}selected{% endif %}>Todas las Categorías</option>
+                                            {% for key, value in CATEGORIA_POST_CHOICES %}
+                                                <option value="{{ key }}" {% if categoria_seleccionada == key %}selected{% endif %}>{{ value }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+
+                                    <button onclick="document.getElementById('off-canvas-publicar').classList.add('active');" 
+                                            class="hidden lg:flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-secondary text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] hover:bg-secondary/90 transition-colors duration-200">
+                                        <span class="material-symbols-outlined">add</span>
+                                        <span class="truncate">Crear publicación</span>
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    {% for post in posts %}
+                                        <div class="flex gap-4 bg-transparent dark:bg-gray-800 p-4 justify-between border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg -mx-4">
+                                            <div class="flex items-start gap-4">
+                                                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" 
+                                                     data-alt="Avatar de {{ post.comerciante.nombre_apellido }}" 
+                                                     style='background-image: url("http://googleusercontent.com/profile/picture/{{ forloop.counter }}");'></div>
+                                                <div class="flex flex-1 flex-col justify-center">
+                                                    <p class="text-xs font-medium uppercase text-primary mb-1">{{ post.get_categoria_display }}</p>
+                                                    <p class="text-text-light dark:text-text-dark text-base font-semibold leading-normal hover:text-primary cursor-pointer">{{ post.titulo }}</p>
+                                                    <p class="text-text-muted-light dark:text-text-muted-dark text-sm font-normal leading-normal mt-1 truncate max-w-full">{{ post.contenido|truncatechars:100 }}</p>
+                                                    
+                                                    {% if post.imagen_url %}
+                                                        <a href="{{ post.imagen_url }}" target="_blank" class="text-primary text-xs font-bold mt-1 inline-block hover:underline">Ver Imagen/Link</a>
+                                                    {% endif %}
+
+                                                    <p class="text-text-muted-light dark:text-text-muted-dark text-xs font-normal leading-normal mt-2">
+                                                        {{ post.comerciante.nombre_apellido }} - {{ post.fecha_publicacion|timesince }}
+                                                        {% if post.etiquetas %}
+                                                            <span class="ml-2 text-primary/70">Etiquetas: {{ post.etiquetas }}</span>
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="shrink-0 flex flex-col items-end justify-center text-sm text-text-muted-light dark:text-text-muted-dark">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-base">forum</span>
+                                                    <span>0</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-base">thumb_up</span>
+                                                    <span>0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="p-4 text-center text-text-muted-light dark:text-text-muted-dark">
+                                            Aún no hay publicaciones en esta categoría. ¡Sé el primero en crear una!
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    <aside class="col-span-12 lg:col-span-3 order-3">
+                        <div class="space-y-8">
+                            <div class="bg-white dark:bg-white p-6 rounded-xl shadow-sm">
                                 <h3 class="text-text-light dark:text-text-dark text-lg font-bold mb-4">Últimas Noticias</h3>
                                 <div class="space-y-4">
                                     <div class="flex gap-4 items-center">
@@ -188,7 +219,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                            <div class="bg-white dark:bg-white p-6 rounded-xl shadow-sm">
                                 <h3 class="text-text-light dark:text-text-dark text-lg font-bold mb-4">Próximos Eventos</h3>
                                 <div class="space-y-4">
                                     <div class="flex gap-4">
@@ -220,6 +251,79 @@
                 </div>
             </main>
         </div>
+    </div>
+    
+    <div class="fixed bottom-0 left-0 w-full p-4 lg:hidden z-40 bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-gray-700 shadow-lg">
+        <button onclick="document.getElementById('off-canvas-publicar').classList.add('active');" 
+                class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-secondary text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] hover:bg-secondary/90 transition-colors duration-200">
+            <span class="material-symbols-outlined">add</span>
+            <span class="truncate">Crear publicación en el Foro</span>
+        </button>
+    </div>
+
+    <div id="off-canvas-publicar" class="off-canvas-panel fixed top-0 right-0 w-full sm:w-1/2 lg:w-1/3 h-full bg-white dark:bg-white z-50 shadow-2xl overflow-y-auto p-6 flex flex-col">
+        <div class="flex justify-between items-center pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-2xl font-bold text-text-light dark:text-text-dark">Crear Nueva Publicación</h3>
+            <button onclick="document.getElementById('off-canvas-publicar').classList.remove('active');" 
+                    class="text-text-muted-light dark:text-text-muted-dark hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-3xl">close</span>
+            </button>
+        </div>
+
+        <form method="POST" action="{% url 'crear_publicacion' %}" enctype="multipart/form-data" class="space-y-4 flex-grow flex flex-col">
+            {% csrf_token %}
+            
+            <div>
+                <label for="{{ post_form.titulo.id_for_label }}" class="block text-sm font-medium text-text-light dark:text-text-dark mb-1">{{ post_form.titulo.label }}</label>
+                {{ post_form.titulo }}
+                {% for error in post_form.titulo.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ post_form.categoria.id_for_label }}" class="block text-sm font-medium text-text-light dark:text-text-dark mb-1">{{ post_form.categoria.label }}</label>
+                {{ post_form.categoria }}
+                {% for error in post_form.categoria.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ post_form.contenido.id_for_label }}" class="block text-sm font-medium text-text-light dark:text-text-dark mb-1">{{ post_form.contenido.label }}</label>
+                <textarea name="{{ post_form.contenido.name }}" id="{{ post_form.contenido.id_for_label }}"
+                    placeholder="{{ post_form.contenido.field.widget.attrs.placeholder }}" rows="5"
+                    class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-primary placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark p-[10px] text-base font-normal leading-normal max-h-48 min-h-24">
+                </textarea>
+                {% for error in post_form.contenido.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ post_form.imagen_o_link.id_for_label }}" class="block text-sm font-medium text-text-light dark:text-text-dark mb-1">{{ post_form.imagen_o_link.label }}</label>
+                {{ post_form.imagen_o_link }}
+                <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">Sube una imagen o comparte un enlace.</p>
+                {% for error in post_form.imagen_o_link.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ post_form.etiquetas_input.id_for_label }}" class="block text-sm font-medium text-text-light dark:text-text-dark mb-1">{{ post_form.etiquetas_input.label }}</label>
+                {{ post_form.etiquetas_input }}
+                <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">{{ post_form.etiquetas_input.help_text }}</p>
+                {% for error in post_form.etiquetas_input.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+            </div>
+            
+            <div class="pt-4 mt-auto border-t border-gray-200 dark:border-gray-700">
+                <button type="submit" class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full transition-transform hover:scale-[1.01]">
+                    <span class="truncate">Publicar en el Foro</span>
+                </button>
+            </div>
+        </form>
     </div>
 </body>
 </html>

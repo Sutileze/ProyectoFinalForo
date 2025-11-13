@@ -1,9 +1,11 @@
+# usuarios/models.py
+
 from django.db import models
+from django.utils import timezone # Importar timezone para la fecha de publicación
 
-# Definición de opciones (CHOICES) para los campos de selección,
-# tomadas directamente del HTML para asegurar la consistencia.
-
+# Definición de opciones (CHOICES) para los campos de selección de Comerciante (se mantienen)
 RELACION_NEGOCIO_CHOICES = [
+    # ... (Se mantienen) ...
     ('DUENO', 'Dueño/a'),
     ('CONYUGE', 'Cónyuge'),
     ('HIJO', 'Hijo/a'),
@@ -12,6 +14,7 @@ RELACION_NEGOCIO_CHOICES = [
 ]
 
 TIPO_NEGOCIO_CHOICES = [
+    # ... (Se mantienen) ...
     ('ALMACEN', 'Almacén'),
     ('BOTILLERIA', 'Botillería'),
     ('CARNICERIA', 'Carnicería'),
@@ -22,7 +25,17 @@ TIPO_NEGOCIO_CHOICES = [
     ('OTRO_NEGOCIO', 'Otro'),
 ]
 
+# NUEVAS OPCIONES PARA EL FORO
+CATEGORIA_POST_CHOICES = [
+    ('DUDA', 'Duda / Pregunta'),
+    ('OPINION', 'Opinión / Debate'),
+    ('RECOMENDACION', 'Recomendación'),
+    ('NOTICIA', 'Noticia del Sector'),
+    ('GENERAL', 'General'),
+]
+
 class Comerciante(models.Model):
+    # ... (Modelo Comerciante se mantiene) ...
     """
     Modelo que representa a un comerciante registrado en la plataforma.
     Corresponde a la tabla 'comerciantes' en la base de datos.
@@ -85,3 +98,50 @@ class Comerciante(models.Model):
     def __str__(self):
         # Representación legible del objeto Comerciante
         return f"{self.nombre_apellido} ({self.email})"
+
+class Post(models.Model):
+    """
+    Modelo que representa una publicación en el foro.
+    """
+    comerciante = models.ForeignKey(
+        'Comerciante',
+        on_delete=models.CASCADE,
+        related_name='posts',
+        verbose_name='Comerciante'
+    )
+    titulo = models.CharField(
+        max_length=200,
+        verbose_name='Título de la Publicación'
+    )
+    contenido = models.TextField(
+        verbose_name='Contenido del Post'
+    )
+    categoria = models.CharField(
+        max_length=50,
+        choices=CATEGORIA_POST_CHOICES,
+        default='GENERAL',
+        verbose_name='Categoría'
+    )
+    imagen_url = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='URL de Imagen/Link'
+    )
+    etiquetas = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Etiquetas (@usuarios, hashtags)'
+    )
+    fecha_publicacion = models.DateTimeField(
+        default=timezone.now,
+        verbose_name='Fecha de Publicación'
+    )
+    
+    class Meta:
+        verbose_name = 'Publicación de Foro'
+        verbose_name_plural = 'Publicaciones de Foro'
+        ordering = ['-fecha_publicacion'] # Posts más nuevos primero
+
+    def __str__(self):
+        return f"[{self.get_categoria_display()}] {self.titulo} por {self.comerciante.nombre_apellido}"
