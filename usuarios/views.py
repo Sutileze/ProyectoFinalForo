@@ -71,7 +71,6 @@ def registro_comerciante_view(request):
 
 # -------------------------------------------------------------------------------------
 # VISTA DE LOGIN (PENDIENTE DE IMPLEMENTACIÓN)
-# Necesaria para que el redirect('login') no cause un error de URL no encontrada
 def login_view(request):
     """
     Vista para manejar el inicio de sesión de comerciantes registrados.

@@ -49,3 +49,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // No necesitamos un preventDefault() aquí, ya que queremos que el navegador
     // siga el enlace de Django para cargar la nueva página/formulario.
 });
+
