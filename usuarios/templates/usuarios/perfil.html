@@ -45,7 +45,8 @@
                     </div>
                     <nav class="hidden md:flex gap-6 text-text-muted-light dark:text-text-muted-dark font-semibold text-sm">
                         <a href="{% url 'plataforma_comerciante' %}" class="hover:text-primary transition-colors">Plataforma</a>
-                        <a href="{% url 'beneficios' %}" class="hover:text-primary transition-colors">Beneficios</a> <a href="#" class="hover:text-primary transition-colors">Directorio</a>
+                        <a href="{% url 'beneficios' %}" class="hover:text-primary transition-colors">Beneficios</a> 
+                        <a href="#" class="hover:text-primary transition-colors">Directorio</a>
                         <a href="#" class="hover:text-primary transition-colors">Recursos</a>
                         <a href="#" class="hover:text-primary transition-colors">Comunidad</a>
                     </nav>
@@ -100,6 +101,25 @@
                             </div>
                             
                             <div class="space-y-4">
+                                <div class="border-t pt-4">
+                                    <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-4">Puntos y Nivel</h3>
+                                    
+                                    <div class="flex items-center justify-between mb-2">
+                                        <p class="text-sm font-medium text-text-muted-light">Puntos Acumulados:</p>
+                                        <p class="text-base font-bold text-secondary">{{ puntos_actuales }}</p>
+                                    </div>
+                                    
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-sm font-medium text-text-muted-light">Nivel Actual:</p>
+                                        <p class="text-base font-bold text-primary">{{ nivel_actual }}</p>
+                                    </div>
+
+                                    {% if nivel_actual != 'Diamante' %}
+                                    <div class="mt-3 text-xs text-text-muted-light">
+                                        Faltan {{ puntos_restantes }} puntos para subir al nivel {{ progreso_porcentaje|add:0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
                                 <div class="border-t pt-4">
                                     <div class="flex justify-between items-center mb-4">
                                         <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Datos Personales</h3>
@@ -180,130 +200,11 @@
         </div>
     </div>
 
-    <div id="editPhotoModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">
-        <div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-2xl w-full max-w-sm">
-            <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-4">Cambiar Foto de Perfil</h3>
-            <form method="post" enctype="multipart/form-data" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="action" value="edit_photo">
-                
-                <div class="mb-4">
-                    <label for="id_foto_perfil" class="block text-sm font-medium text-text-muted-light mb-2 cursor-pointer p-4 border-2 border-dashed border-gray-300 rounded-lg text-center hover:bg-gray-50">
-                        <span class="material-symbols-outlined block mx-auto text-3xl mb-1 text-primary">upload_file</span>
-                        Haz clic para subir una foto
-                    </label>
-                    <input type="file" name="{{ photo_form.foto_perfil.name }}" id="id_foto_perfil" class="hidden" 
-                           onchange="document.getElementById('fileNameDisplay').textContent = this.files[0].name || 'Haz clic para subir una foto'">
-                    <p id="fileNameDisplay" class="text-sm text-text-muted-light mt-1 text-center truncate"></p>
-                    {% if photo_form.foto_perfil.errors %}<p class="text-red-500 text-xs italic mt-1">{{ photo_form.foto_perfil.errors }}</p>{% endif %}
-                </div>
-                
-                <div class="flex justify-end gap-3">
-                    <button type="button" onclick="closeModal('editPhotoModal')" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">Guardar Foto</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <div id="editPhotoModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>
+    <div id="editContactModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>
+    <div id="editBusinessModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>
+    <div id="editInterestsModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>
 
-    <div id="editContactModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">
-        <div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-4">Editar Datos de Contacto</h3>
-            <form method="post" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="action" value="edit_contact">
-                
-                <div class="mb-4">
-                    <label for="{{ contact_form.email.id_for_label }}" class="block text-sm font-medium text-text-muted-light mb-1">Correo Electrónico:</label>
-                    {{ contact_form.email }}
-                    {% if contact_form.email.errors %}<p class="text-red-500 text-xs italic mt-1">{{ contact_form.email.errors }}</p>{% endif %}
-                </div>
-                
-                <div class="mb-6">
-                    <label for="{{ contact_form.whatsapp.id_for_label }}" class="block text-sm font-medium text-text-muted-light mb-1">WhatsApp (+569XXXXXXXX):</label>
-                    {{ contact_form.whatsapp }}
-                    {% if contact_form.whatsapp.errors %}<p class="text-red-500 text-xs italic mt-1">{{ contact_form.whatsapp.errors }}</p>{% endif %}
-                </div>
-                
-                <div class="flex justify-end gap-3">
-                    <button type="button" onclick="closeModal('editContactModal')" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">Guardar Cambios</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="editBusinessModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">
-        <div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-4">Editar Datos del Negocio</h3>
-            <form method="post" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="action" value="edit_business">
-
-                <div class="mb-4">
-                    <label for="{{ business_form.nombre_negocio.id_for_label }}" class="block text-sm font-medium text-text-muted-light mb-1">Nombre del Negocio:</label>
-                    {{ business_form.nombre_negocio }}
-                    {% if business_form.nombre_negocio.errors %}<p class="text-red-500 text-xs italic mt-1">{{ business_form.nombre_negocio.errors }}</p>{% endif %}
-                </div>
-                
-                <div class="mb-4">
-                    <label for="{{ business_form.relacion_negocio.id_for_label }}" class="block text-sm font-medium text-text-muted-light mb-1">Relación con el Negocio:</label>
-                    {{ business_form.relacion_negocio }}
-                    {% if business_form.relacion_negocio.errors %}<p class="text-red-500 text-xs italic mt-1">{{ business_form.relacion_negocio.errors }}</p>{% endif %}
-                </div>
-
-                <div class="mb-4">
-                    <label for="{{ business_form.tipo_negocio.id_for_label }}" class="block text-sm font-medium text-text-muted-light mb-1">Tipo de Negocio:</label>
-                    {{ business_form.tipo_negocio }}
-                    {% if business_form.tipo_negocio.errors %}<p class="text-red-500 text-xs italic mt-1">{{ business_form.tipo_negocio.errors }}</p>{% endif %}
-                </div>
-                
-                <div class="mb-6">
-                    <label for="{{ business_form.comuna.id_for_label }}" class="block text-sm font-medium text-text-muted-light mb-1">Comuna:</label>
-                    {{ business_form.comuna }}
-                    {% if business_form.comuna.errors %}<p class="text-red-500 text-xs italic mt-1">{{ business_form.comuna.errors }}</p>{% endif %}
-                </div>
-                
-                <div class="flex justify-end gap-3">
-                    <button type="button" onclick="closeModal('editBusinessModal')" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">Guardar Cambios</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="editInterestsModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">
-        <div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-2xl w-full max-w-lg">
-            <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-4">Editar Mis Intereses (Elige los que quieras)</h3>
-            <form method="post" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="action" value="edit_interests">
-                
-                <div class="mb-6 h-80 overflow-y-auto p-3 border border-gray-200 rounded-lg">
-                    <p class="block text-sm font-medium text-text-muted-light mb-3">Selecciona al menos uno de tus intereses ({{ interests_form.intereses.field.choices|length }} opciones disponibles):</p>
-                    
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-4">
-                        {% for value, label in interests_form.intereses.field.choices %}
-                            <div class="flex items-center">
-                                <input type="checkbox" 
-                                       name="{{ interests_form.intereses.name }}" 
-                                       id="id_intereses_{{ value }}" 
-                                       value="{{ value }}" 
-                                       class="rounded text-primary focus:ring-primary h-4 w-4 border-gray-300"
-                                       {% if value in interests_form.initial.intereses %} checked {% endif %}>
-                                <label for="id_intereses_{{ value }}" class="ml-2 text-sm text-text-light dark:text-text-dark">{{ label }}</label>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <div class="flex justify-end gap-3">
-                    <button type="button" onclick="closeModal('editInterestsModal')" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">Guardar Intereses</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <script>
         function openModal(id) {

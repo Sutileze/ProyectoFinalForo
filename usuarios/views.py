@@ -1,4 +1,4 @@
-# usuarios/views.py (CONTENIDO COMPLETO Y FINAL MODIFICADO)
+# usuarios/views.py (CONTENIDO COMPLETO MODIFICADO)
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -38,6 +38,47 @@ ROLES = {
     'INVITADO': 'Invitado'
 }
 
+# --- FUNCIÓN DE CÁLCULO DE NIVEL (LÓGICA SOLICITADA) ---
+def calcular_nivel_y_progreso(puntos):
+    NIVELES_VALORES = [nivel[0] for nivel in NIVELES] # BRONCE, PLATA, ORO, PLATINO, DIAMANTE
+    UMBRAL_PUNTOS = 100 
+    MAX_NIVEL_INDEX = len(NIVELES_VALORES) - 1 # Índice de Diamante (4)
+    
+    # 1. Determinar el índice del nivel actual
+    # 0-99 = BRONCE (Index 0), 100-199 = PLATA (Index 1), etc.
+    nivel_index = min(MAX_NIVEL_INDEX, puntos // UMBRAL_PUNTOS)
+    
+    # 2. Asignar el nivel actual
+    nivel_actual_codigo = NIVELES_VALORES[nivel_index]
+    
+    # 3. Calcular umbrales para progreso
+    current_threshold = nivel_index * UMBRAL_PUNTOS
+    
+    if nivel_actual_codigo == 'DIAMANTE':
+        # Nivel Diamante: progreso siempre 100%, meta es el punto actual (no hay tope)
+        progreso_porcentaje = 100
+        puntos_restantes = 0
+        puntos_siguiente_nivel = puntos 
+        proximo_nivel_display = 'Máximo'
+    else:
+        next_threshold = (nivel_index + 1) * UMBRAL_PUNTOS
+        puntos_en_nivel = puntos - current_threshold
+        puntos_a_avanzar = UMBRAL_PUNTOS # Siempre 100 puntos para el siguiente nivel
+        
+        puntos_restantes = next_threshold - puntos
+        progreso_porcentaje = int((puntos_en_nivel / puntos_a_avanzar) * 100)
+        puntos_siguiente_nivel = next_threshold
+        proximo_nivel_display = NIVELES_VALORES[nivel_index + 1]
+
+    return {
+        'nivel_codigo': nivel_actual_codigo,
+        'puntos_restantes': puntos_restantes,
+        'puntos_siguiente_nivel': puntos_siguiente_nivel,
+        'progreso_porcentaje': progreso_porcentaje,
+        'proximo_nivel': proximo_nivel_display,
+    }
+
+
 # --- VISTAS BÁSICAS DE AUTENTICACIÓN ---
 
 def index(request):
@@ -56,6 +97,10 @@ def registro_view(request):
             comuna_final = form.cleaned_data.get('comuna') 
             if comuna_final:
                 nuevo_comerciante.comuna = comuna_final
+            
+            # Inicializar Puntos y Nivel al registrar (BRONCE con 0 puntos)
+            nuevo_comerciante.puntos = 0
+            nuevo_comerciante.nivel_actual = 'BRONCE'
             
             try:
                 nuevo_comerciante.save()
@@ -89,8 +134,12 @@ def login_view(request):
                 comerciante = Comerciante.objects.get(email=email)
 
                 if check_password(password, comerciante.password_hash):
+                    # Actualizar nivel basado en puntos antes de iniciar sesión (asegurar consistencia)
+                    progreso = calcular_nivel_y_progreso(comerciante.puntos)
+                    comerciante.nivel_actual = progreso['nivel_codigo']
+                    
                     comerciante.ultima_conexion = timezone.now()
-                    comerciante.save(update_fields=['ultima_conexion'])
+                    comerciante.save(update_fields=['ultima_conexion', 'nivel_actual']) # Guardar nivel actualizado
                     
                     current_logged_in_user = comerciante
                     
@@ -196,7 +245,7 @@ def publicar_post_view(request):
     return redirect('plataforma_comerciante')
 
 
-# --- VISTA DE PERFIL ---
+# --- VISTA DE PERFIL (Actualizada para mostrar PUNTOS) ---
 
 def perfil_view(request):
     global current_logged_in_user
@@ -206,7 +255,13 @@ def perfil_view(request):
         return redirect('login') 
         
     comerciante = current_logged_in_user 
-
+    progreso = calcular_nivel_y_progreso(comerciante.puntos) # Calcular progreso
+    
+    # Asegurar que el nivel del modelo esté actualizado
+    if comerciante.nivel_actual != progreso['nivel_codigo']:
+        comerciante.nivel_actual = progreso['nivel_codigo']
+        comerciante.save(update_fields=['nivel_actual'])
+    
     if request.method == 'POST':
         action = request.POST.get('action') 
         
@@ -275,6 +330,13 @@ def perfil_view(request):
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'),
         'nombre_negocio_display': comerciante.nombre_negocio,
         
+        # --- CONTEXTO DE PUNTOS Y NIVEL ---
+        'puntos_actuales': comerciante.puntos,
+        'nivel_actual': dict(NIVELES).get(comerciante.nivel_actual, 'Desconocido'),
+        'puntos_restantes': progreso['puntos_restantes'],
+        'progreso_porcentaje': progreso['progreso_porcentaje'],
+        # ----------------------------------
+        
         'photo_form': photo_form,
         'contact_form': contact_form,
         'business_form': business_form,
@@ -287,7 +349,7 @@ def perfil_view(request):
     return render(request, 'usuarios/perfil.html', context)
 
 
-# --- VISTA DE BENEFICIOS (Modificada para filtrar y ordenar) ---
+# --- VISTA DE BENEFICIOS ---
 
 def beneficios_view(request):
     global current_logged_in_user
@@ -298,29 +360,19 @@ def beneficios_view(request):
         
     comerciante = current_logged_in_user
     
-    # --- SIMULACIÓN DE DATOS DE PUNTOS ---
-    puntos_siguiente_nivel = 6700 
-    comerciante.puntos = 5420
-    comerciante.nivel_actual = 'Artesano Oro'
-    puntos_actuales = comerciante.puntos
+    # 1. Calcular el nivel y progreso basado en los puntos del modelo
+    progreso = calcular_nivel_y_progreso(comerciante.puntos)
     
-    puntos_restantes = puntos_siguiente_nivel - puntos_actuales
-    progreso_porcentaje = min(100, int((puntos_actuales / puntos_siguiente_nivel) * 100)) if puntos_siguiente_nivel > 0 else 100
-
-    # --- Lógica de Filtrado y Ordenamiento ---
-    
-    # Obtener parámetros de la URL
+    # 2. Obtener parámetros de la URL para filtrar y ordenar
     category_filter = request.GET.get('category', 'TODOS')
     sort_by = request.GET.get('sort_by', '-fecha_creacion') 
     
-    # 1. Obtener todos los beneficios
+    # 3. Obtener beneficios y aplicar filtros
     beneficios_queryset = Beneficio.objects.all()
     
-    # 2. Aplicar filtro por categoría
     if category_filter and category_filter != 'TODOS':
         beneficios_queryset = beneficios_queryset.filter(categoria=category_filter)
         
-    # 3. Aplicar ordenamiento
     valid_sort_fields = ['vence', '-vence', 'puntos_requeridos', '-puntos_requeridos', '-fecha_creacion']
     if sort_by in valid_sort_fields:
         beneficios_queryset = beneficios_queryset.order_by(sort_by)
@@ -328,25 +380,24 @@ def beneficios_view(request):
         sort_by = '-fecha_creacion'
         beneficios_queryset = beneficios_queryset.order_by(sort_by)
 
-    # --- SIMULACIÓN DE CREACIÓN DE BENEFICIOS ---
-    try:
-        if not Beneficio.objects.exists():
-            # Nota: Los campos titulo, descripcion, vence, y categoria son obligatorios.
-            Beneficio.objects.create(titulo='Sorteo Mensual: Kit de Proveedores', descripcion='Participa y gana productos.', puntos_requeridos=100, vence=timezone.now().date() + timedelta(days=15), categoria='SORTEO')
-            Beneficio.objects.create(titulo='25% de Descuento en tu próximo pedido', descripcion='Aplica este descuento.', puntos_requeridos=500, vence=timezone.now().date() + timedelta(days=10), categoria='DESCUENTO')
-            Beneficio.objects.create(titulo='Capacitación en Marketing Digital', descripcion='Webinar gratuito.', puntos_requeridos=0, vence=timezone.now().date() + timedelta(days=5), categoria='CAPACITACION')
-    except Exception:
-        pass
-
-
+    # 4. Checkear si hay beneficios (para el mensaje "No hay beneficios")
+    no_beneficios_disponibles = not beneficios_queryset.exists()
+    
     context = {
         'comerciante': comerciante,
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
-        'puntos_restantes': puntos_restantes,
-        'puntos_siguiente_nivel': puntos_siguiente_nivel,
-        'progreso_porcentaje': progreso_porcentaje,
-        'proximo_nivel': 'Platino',
+        
+        # CONTEXTO DE PUNTOS CALCULADO
+        'puntos_actuales': comerciante.puntos,
+        'nivel_actual': dict(NIVELES).get(progreso['nivel_codigo'], 'Bronce'),
+        'puntos_restantes': progreso['puntos_restantes'],
+        'puntos_siguiente_nivel': progreso['puntos_siguiente_nivel'],
+        'progreso_porcentaje': progreso['progreso_porcentaje'],
+        'proximo_nivel': progreso['proximo_nivel'],
+        
+        # CONTEXTO DE BENEFICIOS
         'beneficios': beneficios_queryset,
+        'no_beneficios_disponibles': no_beneficios_disponibles,
         'CATEGORIAS': CATEGORIAS, 
         'current_category': category_filter, 
         'current_sort': sort_by, 
@@ -398,7 +449,6 @@ def add_comment_view(request, post_id):
             nuevo_comentario.post = post
             nuevo_comentario.comerciante = current_logged_in_user
             nuevo_comentario.save()
-            messages.success(request, '¡Comentario publicado con éxito!')
             return redirect('plataforma_comerciante') 
         else:
             messages.error(request, 'Error al publicar el comentario. Asegúrate de que el contenido no esté vacío.')
