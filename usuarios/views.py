@@ -1,15 +1,15 @@
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
-from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db import IntegrityError # Necesario para manejar duplicados
+# usuarios/views.py (CONTENIDO RESTAURADO)
 
-# Importamos los modelos y las opciones
-from .models import Comerciante, Post, INTERESTS_CHOICES
-from django.contrib.auth.hashers import make_password, check_password # Usaremos estos para simular el hasheo
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.hashers import make_password, check_password 
 from django.core.files.storage import default_storage 
 from django.utils import timezone
+from django.db.models import Count, Q # Se mantienen para contar likes/comentarios en el feed
+from django.db import IntegrityError 
+
+# Importamos los modelos y las opciones
+from .models import Comerciante, Post, Like, Comentario, INTERESTS_CHOICES 
 
 # Importamos todos los formularios necesarios
 from .forms import (
@@ -19,7 +19,8 @@ from .forms import (
     ProfilePhotoForm,
     BusinessDataForm,
     ContactInfoForm,
-    InterestsForm
+    InterestsForm,
+    ComentarioForm 
 )
 
 # --- SIMULACIÓN DE ESTADO DE SESIÓN GLOBAL ---
@@ -32,19 +33,15 @@ ROLES = {
     'INVITADO': 'Invitado'
 }
 
-# --- VISTAS BÁSICAS DE AUTENTICACIÓN ---
+# --- VISTAS BÁSICAS DE AUTENTICACIÓN (Se mantienen) ---
 
 def index(request):
-    """Vista de inicio o landing page."""
-    return redirect('registro') # Redirigir a registro/login
+    return redirect('registro') 
 
 def registro_view(request):
-    """Vista para el registro de nuevos comerciantes."""
     if request.method == 'POST':
         form = RegistroComercianteForm(request.POST)
         if form.is_valid():
-            
-            # --- Lógica de Guardado ---
             raw_password = form.cleaned_data.pop('password')
             hashed_password = make_password(raw_password)
 
@@ -59,16 +56,12 @@ def registro_view(request):
                 nuevo_comerciante.save()
                 messages.success(request, '¡Registro exitoso! Ya puedes iniciar sesión.')
                 return redirect('login') 
-            
             except IntegrityError:
                 messages.error(request, 'Este correo electrónico ya está registrado. Por favor, inicia sesión o usa otro correo.')
-            
             except Exception as e:
                 messages.error(request, f'Ocurrió un error inesperado al guardar: {e}')
-                
         else:
             messages.error(request, 'Por favor, corrige los errores del formulario.')
-            
     else:
         form = RegistroComercianteForm()
     
@@ -79,7 +72,6 @@ def registro_view(request):
 
 
 def login_view(request):
-    """Vista para el inicio de sesión."""
     global current_logged_in_user
     
     if request.method == 'POST':
@@ -91,26 +83,21 @@ def login_view(request):
             try:
                 comerciante = Comerciante.objects.get(email=email)
 
-                # Usamos check_password para verificar el hash
                 if check_password(password, comerciante.password_hash):
                     comerciante.ultima_conexion = timezone.now()
                     comerciante.save(update_fields=['ultima_conexion'])
                     
-                    # SIMULACIÓN DE SESIÓN: Almacenamos el objeto globalmente.
                     current_logged_in_user = comerciante
                     
                     messages.success(request, f'¡Bienvenido {comerciante.nombre_apellido}!')
                     return redirect('plataforma_comerciante')
-
                 else:
                     messages.error(request, 'Contraseña incorrecta. Intenta nuevamente.')
 
             except Comerciante.DoesNotExist:
                 messages.error(request, 'Este correo no está registrado. Por favor, regístrate primero.')
-
         else:
             messages.error(request, 'Por favor, completa todos los campos correctamente.')
-
     else:
         form = LoginForm()
         current_logged_in_user = None 
@@ -122,7 +109,6 @@ def login_view(request):
 
 
 def logout_view(request):
-    """Vista para cerrar la sesión."""
     global current_logged_in_user
     if current_logged_in_user:
         messages.info(request, f'Adiós, {current_logged_in_user.nombre_apellido}. Has cerrado sesión.')
@@ -130,46 +116,44 @@ def logout_view(request):
     return redirect('login')
 
 
-# --- VISTA PRINCIPAL DE LA PLATAFORMA ---
+# --- VISTA PRINCIPAL DE LA PLATAFORMA (Manteniendo conteo para feed) ---
 
 def plataforma_comerciante_view(request):
-    """Vista principal de la plataforma para comerciantes."""
     global current_logged_in_user
 
     if not current_logged_in_user:
         messages.warning(request, 'Por favor, inicia sesión para acceder a la plataforma.')
         return redirect('login') 
         
-    # 1. Manejo del Filtro de Categoría (Usa getlist para múltiples valores)
+    # Obtener Posts con Conteo de Comentarios y Likes (Necesario para el feed)
+    posts_query = Post.objects.select_related('comerciante').annotate(
+        comentarios_count=Count('comentarios', distinct=True), 
+        likes_count=Count('likes', distinct=True) 
+    )
+    
     categoria_filtros = request.GET.getlist('categoria', [])
     
     if categoria_filtros and 'TODAS' not in categoria_filtros:
-        posts = Post.objects.filter(categoria__in=categoria_filtros)
+        posts = posts_query.filter(categoria__in=categoria_filtros)
     else:
-        posts = Post.objects.all()
+        posts = posts_query.all()
         if not categoria_filtros or 'TODAS' in categoria_filtros:
             categoria_filtros = ['TODAS']
         
-    # 2. Obtener el formulario de publicación vacío para el modal
-    post_form = PostForm()
-
-    # 3. Datos de Contexto
     context = {
         'comerciante': current_logged_in_user,
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
-        'post_form': post_form,
+        'post_form': PostForm(),
         'posts': posts,
-        # Importar de models.py si se requiere una lista
         'CATEGORIA_POST_CHOICES': Post._meta.get_field('categoria').choices, 
         'categoria_seleccionada': categoria_filtros, 
-        'message': f'Bienvenido a la plataforma, {current_logged_in_user.nombre_apellido.split()[0]}.'
+        'message': f'Bienvenido a la plataforma, {current_logged_in_user.nombre_apellido.split()[0]}.',
     }
     
     return render(request, 'usuarios/plataforma_comerciante.html', context)
 
 
 def publicar_post_view(request):
-    """Vista para publicar un nuevo post, manejando la subida de archivos."""
     global current_logged_in_user
     
     if request.method == 'POST':
@@ -184,14 +168,11 @@ def publicar_post_view(request):
                 nuevo_post = form.save(commit=False)
                 nuevo_post.comerciante = current_logged_in_user
                 
-                # --- Manejo de Archivos Subidos ---
                 uploaded_file = form.cleaned_data.get('uploaded_file')
                 
                 if uploaded_file:
                     file_name = default_storage.save(f'posts/{uploaded_file.name}', uploaded_file)
                     nuevo_post.imagen_url = default_storage.url(file_name) 
-                
-                # La URL externa ya fue manejada en form.clean()
                 
                 nuevo_post.save()
                 messages.success(request, '¡Publicación creada con éxito! Se ha añadido al foro.')
@@ -206,13 +187,9 @@ def publicar_post_view(request):
     return redirect('plataforma_comerciante')
 
 
-# --- VISTA DE PERFIL (ACTUALIZADA Y FUNCIONAL) ---
+# --- VISTA DE PERFIL (Se mantiene) ---
 
 def perfil_view(request):
-    """
-    Vista para mostrar la información detallada del perfil y manejar todas las ediciones
-    mediante diferentes formularios (usando 'action' para distinguir el POST).
-    """
     global current_logged_in_user
     
     if not current_logged_in_user:
@@ -222,9 +199,9 @@ def perfil_view(request):
     comerciante = current_logged_in_user 
 
     if request.method == 'POST':
+        # ... (Lógica de edición de perfil, no modificada)
         action = request.POST.get('action') 
         
-        # --- 1. Edición de Foto de Perfil (Requiere request.FILES) ---
         if action == 'edit_photo':
             photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=comerciante)
             if photo_form.is_valid():
@@ -234,7 +211,6 @@ def perfil_view(request):
             else:
                 messages.error(request, 'Error al subir la foto. Asegúrate de que sea un archivo válido.')
 
-        # --- 2. Edición de Datos de Contacto (Email, WhatsApp) ---
         elif action == 'edit_contact':
             contact_form = ContactInfoForm(request.POST, instance=comerciante) 
             if contact_form.is_valid():
@@ -245,7 +221,6 @@ def perfil_view(request):
                 else:
                     contact_form.save()
                     messages.success(request, 'Datos de contacto actualizados con éxito.')
-                    # Actualizamos el objeto global simulado
                     current_logged_in_user.email = nuevo_email 
                     current_logged_in_user.whatsapp = contact_form.cleaned_data.get('whatsapp')
                     return redirect('perfil')
@@ -253,7 +228,6 @@ def perfil_view(request):
                 error_msgs = [f"{field.label}: {', '.join(error for error in field.errors)}" for field in contact_form if field.errors]
                 messages.error(request, f'Error en los datos de contacto. {"; ".join(error_msgs)}')
 
-        # --- 3. Edición de Datos de Negocio ---
         elif action == 'edit_business':
             business_form = BusinessDataForm(request.POST, instance=comerciante)
             if business_form.is_valid():
@@ -265,7 +239,6 @@ def perfil_view(request):
                 error_msgs = [f"{field.label}: {', '.join(error for error in field.errors)}" for field in business_form if field.errors]
                 messages.error(request, f'Error en los datos del negocio. {"; ".join(error_msgs)}')
 
-        # --- 4. Edición de Intereses ---
         elif action == 'edit_interests':
             interests_form = InterestsForm(request.POST)
             if interests_form.is_valid():
@@ -280,8 +253,6 @@ def perfil_view(request):
             else:
                 messages.error(request, 'Error al actualizar los intereses.')
 
-    # --- Manejo de GET o POST fallido ---
-    
     photo_form = ProfilePhotoForm()
     contact_form = ContactInfoForm(instance=comerciante) 
     business_form = BusinessDataForm(instance=comerciante) 
@@ -296,15 +267,98 @@ def perfil_view(request):
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'),
         'nombre_negocio_display': comerciante.nombre_negocio,
         
-        # Forms
         'photo_form': photo_form,
         'contact_form': contact_form,
         'business_form': business_form,
         'interests_form': interests_form,
         
-        # Intereses para mostrar en la vista
         'intereses_actuales_codigos': [c for c in intereses_actuales_codigos if c],
         'intereses_choices_dict': intereses_choices_dict,
     }
     
     return render(request, 'usuarios/perfil.html', context)
+
+
+# --- RESTAURADO: VISTAS DE DETALLE DE POST Y ACCIONES (con recarga) ---
+
+def post_detail_view(request, post_id):
+    """Muestra un post individual y su lista de comentarios (con recarga)."""
+    global current_logged_in_user
+    
+    if not current_logged_in_user:
+        messages.warning(request, 'Debes iniciar sesión para ver los detalles.')
+        return redirect('login') 
+        
+    # Obtener post con conteos de likes y si el usuario actual ya dio like
+    post = get_object_or_404(Post.objects.select_related('comerciante').annotate(
+        comentarios_count=Count('comentarios', distinct=True),
+        likes_count=Count('likes', distinct=True),
+        is_liked=Count('likes', filter=Q(likes__comerciante=current_logged_in_user))
+    ), pk=post_id)
+        
+    # Obtener comentarios y seleccionar el comerciante autor para optimización
+    comentarios = post.comentarios.select_related('comerciante').all().order_by('fecha_creacion')
+    
+    context = {
+        'comerciante': current_logged_in_user,
+        'post': post,
+        'comentarios': comentarios,
+        'comentario_form': ComentarioForm(),
+    }
+    
+    return render(request, 'usuarios/post_detail.html', context)
+
+
+def add_comment_view(request, post_id):
+    """Maneja la lógica para añadir un comentario a un post (con recarga)."""
+    global current_logged_in_user
+    
+    if not current_logged_in_user:
+        messages.error(request, 'No autorizado para comentar. Inicia sesión.')
+        return redirect('login')
+        
+    post = get_object_or_404(Post, pk=post_id)
+
+    if request.method == 'POST':
+        form = ComentarioForm(request.POST)
+        if form.is_valid():
+            nuevo_comentario = form.save(commit=False)
+            nuevo_comentario.post = post
+            nuevo_comentario.comerciante = current_logged_in_user
+            nuevo_comentario.save()
+            messages.success(request, '¡Comentario publicado con éxito!')
+            return redirect('post_detail', post_id=post.id)
+        else:
+            messages.error(request, 'Error al publicar el comentario. Asegúrate de que el contenido no esté vacío.')
+            # Si hay error, redirige y el post_detail_view lo mostrará.
+            return redirect('post_detail', post_id=post.id)
+            
+    return redirect('post_detail', post_id=post_id)
+
+
+def like_post_view(request, post_id):
+    """Maneja la adición/eliminación de likes a un post (con recarga)."""
+    global current_logged_in_user
+
+    if not current_logged_in_user:
+        messages.error(request, 'Debes iniciar sesión para dar like.')
+        return redirect('login')
+
+    post = get_object_or_404(Post, pk=post_id)
+
+    if request.method == 'POST':
+        # Intenta obtener el Like. Si no existe, lo crea.
+        like, created = Like.objects.get_or_create(
+            post=post,
+            comerciante=current_logged_in_user
+        )
+        
+        if not created:
+            # Si ya existía, lo elimina (dislike)
+            like.delete()
+            messages.success(request, 'Dislike registrado.')
+        else:
+            # Si se creó, es un nuevo like
+            messages.success(request, '¡Like registrado!')
+
+    return redirect('post_detail', post_id=post.id)

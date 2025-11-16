@@ -1,5 +1,11 @@
+# usuarios/forms.py (CONTENIDO RESTAURADO)
+
 from django import forms
-from .models import Comerciante, Post, RELACION_NEGOCIO_CHOICES, TIPO_NEGOCIO_CHOICES, CATEGORIA_POST_CHOICES, INTERESTS_CHOICES # Importar las nuevas choices
+from .models import (
+    Comerciante, Post, Comentario, Like, 
+    RELACION_NEGOCIO_CHOICES, TIPO_NEGOCIO_CHOICES, 
+    CATEGORIA_POST_CHOICES, INTERESTS_CHOICES
+) 
 # Opciones de comuna
 COMUNA_CHOICES = [
     ('', 'Selecciona tu comuna'),
@@ -190,3 +196,21 @@ class InterestsForm(forms.Form):
         required=False,
         label="Selecciona tus intereses"
     )
+
+# --- FORMULARIO DE COMENTARIOS RESTAURADO ---
+
+class ComentarioForm(forms.ModelForm):
+    """Formulario para añadir un nuevo comentario."""
+    class Meta:
+        model = Comentario
+        fields = ['contenido']
+        widgets = {
+            'contenido': forms.Textarea(attrs={
+                'placeholder': 'Escribe tu comentario...',
+                'rows': 3,
+                'class': 'w-full resize-none rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-primary focus:border-primary p-[10px] text-base'
+            }),
+        }
+        labels = {
+            'contenido': 'Tu Comentario'
+        }

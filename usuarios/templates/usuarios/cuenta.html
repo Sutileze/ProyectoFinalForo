@@ -46,6 +46,21 @@
 <span class="material-symbols-outlined text-primary text-5xl">storefront</span>
 <h1 class="text-3xl font-black text-[#0d171b] dark:text-white mt-2">Comerciantes de Barrio</h1>
 </div>
+
+{% if comerciante %}
+    <div class="flex items-center justify-center mb-4">
+        <a href="{% url 'perfil' %}" class="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" 
+                data-alt="Foto de {{ comerciante.nombre_apellido }}" 
+                style='background-image: url("{{ comerciante.get_profile_picture_url }}");'>
+            </div>
+            <div class="flex flex-col text-left pr-2">
+                <p class="text-text-light dark:text-text-dark text-sm font-semibold leading-none">{{ comerciante.nombre_apellido|truncatewords:2 }}</p>
+                <p class="text-text-muted-light dark:text-text-muted-dark text-xs leading-none mt-1">{{ rol_usuario }}</p>
+            </div>
+        </a>
+    </div>
+{% endif %}
 <div class="pb-3">
 <div class="flex border-b border-[#cfdfe7] dark:border-gray-700 gap-8">
 <a id="login-tab" data-target="login-form-wrapper" class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#4c809a] dark:text-gray-400 pb-[13px] pt-4 flex-1 cursor-pointer" href="{% url 'login' %}">

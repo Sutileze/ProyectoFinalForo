@@ -71,7 +71,7 @@
                     <a href="{% url 'perfil' %}" class="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" 
                             data-alt="Foto de {{ comerciante.nombre_apellido }}" 
-                            style='background-image: url("http://googleusercontent.com/profile/picture/user_placeholder");'>
+                            style='background-image: url("{{ comerciante.get_profile_picture_url }}");'>
                         </div>
                         
                         <div class="flex flex-col text-left hidden sm:block">
@@ -179,39 +179,53 @@
                                 
                                 <div class="space-y-4">
                                     {% for post in posts %}
-                                        <div class="flex gap-4 bg-transparent dark:bg-gray-800 p-4 justify-between border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg -mx-4">
-                                            <div class="flex items-start gap-4">
+                                    
+                                    <a href="{% url 'post_detail' post_id=post.id %}" class="block text-decoration-none text-inherit">
+                                        <div class="flex p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-100 transition-colors cursor-pointer">
+                                            
+                                            <div class="shrink-0 mr-3">
                                                 <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" 
                                                      data-alt="Avatar de {{ post.comerciante.nombre_apellido }}" 
-                                                     style='background-image: url("http://googleusercontent.com/profile/picture/{{ forloop.counter }}");'></div>
-                                                <div class="flex flex-1 flex-col justify-center">
-                                                    <p class="text-xs font-medium uppercase text-primary mb-1">{{ post.get_categoria_display }}</p>
-                                                    <p class="text-text-light dark:text-text-dark text-base font-semibold leading-normal hover:text-primary cursor-pointer">{{ post.titulo }}</p>
-                                                    <p class="text-text-muted-light dark:text-text-muted-dark text-sm font-normal leading-normal mt-1 truncate max-w-full">{{ post.contenido|truncatechars:100 }}</p>
-                                                    
-                                                    {% if post.imagen_url %}
-                                                        <a href="{{ post.imagen_url }}" target="_blank" class="text-primary text-xs font-bold mt-1 inline-block hover:underline">Ver Imagen/Link</a>
-                                                    {% endif %}
+                                                     style='background-image: url("{{ post.comerciante.get_profile_picture_url }}");'>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <div class="flex items-center text-sm">
+                                                        <p class="font-bold text-text-light dark:text-text-dark mr-2">{{ post.comerciante.nombre_apellido|truncatewords:2 }}</p>
+                                                        <p class="text-text-muted-light dark:text-text-muted-dark">@{{ post.comerciante.nombre_negocio|slugify }}</p>
+                                                        <span class="text-text-muted-light dark:text-text-muted-dark mx-1">•</span>
+                                                        <p class="text-text-muted-light dark:text-text-muted-dark">{{ post.fecha_publicacion|timesince }}</p>
+                                                    </div>
+                                                    <span class="text-xs font-medium uppercase text-primary">{{ post.get_categoria_display }}</span>
+                                                </div>
+                                                
+                                                <p class="text-base font-semibold text-text-light dark:text-text-dark mb-1">{{ post.titulo }}</p>
+                                                <p class="text-text-light dark:text-text-dark text-sm mb-2 whitespace-pre-wrap">{{ post.contenido|truncatechars:200 }}</p>
 
-                                                    <p class="text-text-muted-light dark:text-text-muted-dark text-xs font-normal leading-normal mt-2">
-                                                        {{ post.comerciante.nombre_apellido }} - {{ post.fecha_publicacion|timesince }}
-                                                        {% if post.etiquetas %}
-                                                            <span class="ml-2 text-primary/70">Etiquetas: {{ post.etiquetas }}</span>
-                                                        {% endif %}
+                                                {% if post.imagen_url %}
+                                                    <div class="block mb-2 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-300">
+                                                        <img src="{{ post.imagen_url }}" alt="Contenido multimedia del post" class="max-h-60 w-full object-cover"/>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <div class="flex items-center text-text-muted-light dark:text-text-muted-dark text-sm mt-3">
+                                                    <div class="flex items-center mr-4">
+                                                        <span class="material-symbols-outlined text-base mr-1">forum</span>
+                                                        <span>{{ post.comentarios_count }}</span>
+                                                    </div>
+                                                    <div class="flex items-center mr-4">
+                                                        <span class="material-symbols-outlined text-base mr-1">favorite</span>
+                                                        <span>{{ post.likes_count }}</span>
+                                                    </div>
+                                                    <p class="text-xs text-primary/70">
+                                                        {% if post.etiquetas %}Etiquetas: {{ post.etiquetas }}{% endif %}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div class="shrink-0 flex flex-col items-end justify-center text-sm text-text-muted-light dark:text-text-muted-dark">
-                                                <div class="flex items-center gap-1">
-                                                    <span class="material-symbols-outlined text-base">forum</span>
-                                                    <span>0</span>
-                                                </div>
-                                                <div class="flex items-center gap-1">
-                                                    <span class="material-symbols-outlined text-base">thumb_up</span>
-                                                    <span>0</span>
-                                                </div>
-                                            </div>
                                         </div>
+                                    </a>
                                     {% empty %}
                                         <div class="p-4 text-center text-text-muted-light dark:text-text-muted-dark">
                                             Aún no hay publicaciones en esta categoría. ¡Sé el primero en crear una!
@@ -249,7 +263,7 @@
                                     <div class="flex gap-4">
                                         <div class="flex flex-col items-center justify-center bg-primary/10 dark:bg-primary/20 text-primary rounded-lg p-2 w-16 h-16 shrink-0">
                                             <span class="text-sm font-bold">JUL</span>
-                                            <span class="text-2xl font-bold">25</span>
+                                            <span class="2xl font-bold">25</span>
                                         </div>
                                         <div>
                                             <p class="text-text-light dark:text-text-dark font-semibold">Taller Online: Marketing en Redes Sociales</p>
@@ -260,7 +274,7 @@
                                     <div class="flex gap-4">
                                         <div class="flex flex-col items-center justify-center bg-primary/10 dark:bg-primary/20 text-primary rounded-lg p-2 w-16 h-16 shrink-0">
                                             <span class="text-sm font-bold">AGO</span>
-                                            <span class="text-2xl font-bold">12</span>
+                                            <span class="2xl font-bold">12</span>
                                         </div>
                                         <div>
                                             <p class="text-text-light dark:text-text-dark font-semibold">Reunión Mensual de Comerciantes - Zona Centro</p>
@@ -358,6 +372,7 @@
             </div>
         </form>
     </div>
+
 <script>
     function toggleFilter(contentId, iconId) {
         const content = document.getElementById(contentId);

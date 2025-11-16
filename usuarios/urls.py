@@ -1,21 +1,27 @@
+# usuarios/urls.py (CONTENIDO RESTAURADO)
+
 from django.urls import path
 from . import views
 
 urlpatterns = [
-    # CORREGIDO: La vista de registro ahora se llama 'registro_view'
+    # AUTH
     path('', views.registro_view, name='registro'),
-
-    # URL para la vista de login
     path('login/', views.login_view, name='login'), 
-    
-    # URL para cerrar sesión
     path('logout/', views.logout_view, name='logout'),
 
+    # PLATFORM/FORUM
     path('plataforma/', views.plataforma_comerciante_view, name='plataforma_comerciante'),
-    
-    # CORREGIDO: URL para crear publicaciones (ahora publicar_post_view)
     path('publicar/', views.publicar_post_view, name='crear_publicacion'),
     
-    # URL para el perfil
+    # PERFIL
     path('perfil/', views.perfil_view, name='perfil'),
+    
+    # RESTAURADO: Detalle del Post y Comentarios (Ver comentarios)
+    path('post/<int:post_id>/', views.post_detail_view, name='post_detail'),
+    
+    # RESTAURADO: Añadir Comentario (add comment, recarga página)
+    path('post/<int:post_id>/comentar/', views.add_comment_view, name='add_comment'),
+    
+    # RESTAURADO: Liking posts (like, recarga página)
+    path('post/<int:post_id>/like/', views.like_post_view, name='like_post'),
 ]

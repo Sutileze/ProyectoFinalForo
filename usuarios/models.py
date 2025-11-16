@@ -1,10 +1,9 @@
-# usuarios/models.py
+# usuarios/models.py (CONTENIDO RESTAURADO)
 
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
 from django.conf import settings
-# Importamos static para resolver la URL de la imagen por defecto
 from django.templatetags.static import static 
 
 # --- Opciones de Selección Múltiple ---
@@ -48,7 +47,7 @@ INTERESTS_CHOICES = [
     ('SEGUROS', 'Seguros para Negocios'),
 ]
 
-# Categorías para publicaciones del foro (se mantiene)
+# Categorías para publicaciones del foro (ESTADO RESTAURADO)
 CATEGORIA_POST_CHOICES = [
     ('DUDA', 'Duda / Pregunta'),
     ('OPINION', 'Opinión / Debate'),
@@ -62,9 +61,8 @@ class Comerciante(models.Model):
     # Campos de Autenticación y Contacto
     nombre_apellido = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
-    password_hash = models.CharField(max_length=128) # Almacena la contraseña hasheada
+    password_hash = models.CharField(max_length=128) 
     
-    # Validador de WhatsApp para formato chileno (+569XXXXXXXX)
     whatsapp_validator = RegexValidator(
         regex=r'^\+569\d{8}$', 
         message="El formato debe ser '+569XXXXXXXX'."
@@ -80,34 +78,26 @@ class Comerciante(models.Model):
     # Campos de Negocio
     relacion_negocio = models.CharField(max_length=10, choices=RELACION_NEGOCIO_CHOICES)
     tipo_negocio = models.CharField(max_length=20, choices=TIPO_NEGOCIO_CHOICES)
-    comuna = models.CharField(max_length=50) # Nombre de la comuna
+    comuna = models.CharField(max_length=50) 
+    nombre_negocio = models.CharField(max_length=100, default='Mi Negocio Local', blank=True)
 
     # Campos de Auditoría
     fecha_registro = models.DateTimeField(auto_now_add=True)
     ultima_conexion = models.DateTimeField(default=timezone.now)
 
-    # --- NUEVOS CAMPOS DE PERFIL ---
-    
-    # 1. Foto de Perfil
-    # Usamos la cadena literal como default para que funcione la migración.
+    # Campos de Perfil
     foto_perfil = models.ImageField(
         upload_to='perfiles/', 
-        # La ruta del default debe coincidir con la definida en settings.py y existir en static/
         default='usuarios/img/default_profile.png', 
         blank=True, 
         null=True
     )
-
-    # 2. Intereses (guardamos una lista de códigos separados por coma)
     intereses = models.CharField(
         max_length=512, 
         default='', 
         blank=True, 
         help_text="Códigos de intereses separados por coma."
     )
-    
-    # 3. Campo para el nombre del negocio
-    nombre_negocio = models.CharField(max_length=100, default='Mi Negocio Local', blank=True)
     
     class Meta:
         verbose_name = 'Comerciante'
@@ -116,58 +106,27 @@ class Comerciante(models.Model):
     def __str__(self):
         return f"{self.nombre_apellido} ({self.email})"
 
-    # Método para obtener la URL de la foto de perfil (maneja el valor por defecto)
     def get_profile_picture_url(self):
-        # La ruta por defecto usada como string
         DEFAULT_IMAGE_PATH = 'usuarios/img/default_profile.png'
-        
-        # Si tiene una foto subida y no es el placeholder, retorna su URL MEDIA
         if self.foto_perfil.name and self.foto_perfil.name != DEFAULT_IMAGE_PATH:
             return self.foto_perfil.url
-        
-        # Si no, retorna la URL estática de la imagen por defecto
-        # La función static() buscará 'img/default_profile.png' dentro de la carpeta 'static' de la app 'usuarios'
         return static('img/default_profile.png')
 
 
 class Post(models.Model):
-    """
-    Modelo que representa una publicación en el foro.
-    """
+    """Modelo que representa una publicación en el foro."""
     comerciante = models.ForeignKey(
         Comerciante,
         on_delete=models.CASCADE,
         related_name='posts',
         verbose_name='Comerciante'
     )
-    titulo = models.CharField(
-        max_length=200,
-        verbose_name='Título de la Publicación'
-    )
-    contenido = models.TextField(
-        verbose_name='Contenido del Post'
-    )
-    categoria = models.CharField(
-        max_length=50,
-        choices=CATEGORIA_POST_CHOICES,
-        default='GENERAL',
-        verbose_name='Categoría'
-    )
-    imagen_url = models.URLField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name='URL de Imagen/Link de Archivo Subido'
-    )
-    etiquetas = models.CharField(
-        max_length=255,
-        blank=True,
-        verbose_name='Etiquetas (@usuarios, hashtags)'
-    )
-    fecha_publicacion = models.DateTimeField(
-        default=timezone.now,
-        verbose_name='Fecha de Publicación'
-    )
+    titulo = models.CharField(max_length=200, verbose_name='Título de la Publicación')
+    contenido = models.TextField(verbose_name='Contenido del Post')
+    categoria = models.CharField(max_length=50, choices=CATEGORIA_POST_CHOICES, default='GENERAL', verbose_name='Categoría')
+    imagen_url = models.URLField(max_length=200, blank=True, null=True, verbose_name='URL de Imagen/Link de Archivo Subido')
+    etiquetas = models.CharField(max_length=255, blank=True, verbose_name='Etiquetas (@usuarios, hashtags)')
+    fecha_publicacion = models.DateTimeField(default=timezone.now, verbose_name='Fecha de Publicación')
     
     class Meta:
         verbose_name = 'Publicación de Foro'
@@ -176,3 +135,52 @@ class Post(models.Model):
 
     def __str__(self):
         return f"[{self.get_categoria_display()}] {self.titulo} por {self.comerciante.nombre_apellido}"
+
+# --- MODELOS COMENTARIOS Y LIKES (Necesarios para que las tablas existan) ---
+
+class Comentario(models.Model):
+    post = models.ForeignKey(
+        Post, 
+        on_delete=models.CASCADE, 
+        related_name='comentarios', 
+        verbose_name='Publicación'
+    )
+    comerciante = models.ForeignKey(
+        'Comerciante', 
+        on_delete=models.CASCADE, 
+        related_name='comentarios_dados', 
+        verbose_name='Autor'
+    )
+    contenido = models.TextField(verbose_name='Comentario')
+    fecha_creacion = models.DateTimeField(default=timezone.now, verbose_name='Fecha de Creación')
+    
+    class Meta:
+        verbose_name = 'Comentario'
+        verbose_name_plural = 'Comentarios'
+        ordering = ['fecha_creacion']
+
+    def __str__(self):
+        return f"Comentario de {self.comerciante.nombre_apellido} en {self.post.titulo[:20]}"
+
+
+class Like(models.Model):
+    post = models.ForeignKey(
+        Post, 
+        on_delete=models.CASCADE, 
+        related_name='likes', 
+        verbose_name='Publicación'
+    )
+    comerciante = models.ForeignKey(
+        'Comerciante', 
+        on_delete=models.CASCADE, 
+        related_name='likes_dados', 
+        verbose_name='Comerciante'
+    )
+    
+    class Meta:
+        unique_together = ('post', 'comerciante')
+        verbose_name = 'Like'
+        verbose_name_plural = 'Likes'
+
+    def __str__(self):
+        return f"Like de {self.comerciante.nombre_apellido} a {self.post.titulo[:20]}"
