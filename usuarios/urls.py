@@ -1,4 +1,4 @@
-# usuarios/urls.py (CONTENIDO MODIFICADO)
+# usuarios/urls.py (CONTENIDO COMPLETO MODIFICADO)
 
 from django.urls import path
 from . import views
@@ -13,18 +13,16 @@ urlpatterns = [
     path('plataforma/', views.plataforma_comerciante_view, name='plataforma_comerciante'),
     path('publicar/', views.publicar_post_view, name='crear_publicacion'),
     
-    # PERFIL
+    # PERFIL Y BENEFICIOS
     path('perfil/', views.perfil_view, name='perfil'),
-    
-    # BENEFICIOS (NUEVA RUTA)
     path('beneficios/', views.beneficios_view, name='beneficios'),
     
-    # RESTAURADO: Detalle del Post y Comentarios (Ver comentarios)
+    # DIRECTORIO DE PROVEEDORES (NUEVAS RUTAS)
+    path('directorio/', views.directorio_view, name='directorio'),
+    path('directorio/<int:pk>/', views.proveedor_perfil_view, name='proveedor_perfil'),
+    
+    # POSTS (DETALLE, COMENTARIO, LIKE)
     path('post/<int:post_id>/', views.post_detail_view, name='post_detail'),
-    
-    # RESTAURADO: Añadir Comentario (add comment, recarga página)
     path('post/<int:post_id>/comentar/', views.add_comment_view, name='add_comment'),
-    
-    # RESTAURADO: Liking posts (like, recarga página)
     path('post/<int:post_id>/like/', views.like_post_view, name='like_post'),
 ]

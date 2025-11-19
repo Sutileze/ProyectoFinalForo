@@ -1,4 +1,4 @@
-# usuarios/views.py (CONTENIDO COMPLETO MODIFICADO)
+# usuarios/views.py (CONTENIDO COMPLETO MODIFICADO CON DIRECTORIO)
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -10,10 +10,10 @@ from django.db import IntegrityError
 from datetime import timedelta 
 from django.contrib.auth.decorators import login_required 
 
-# Importamos los modelos y las opciones
+# Importamos todos los modelos y opciones
 from .models import (
     Comerciante, Post, Like, Comentario, INTERESTS_CHOICES, Beneficio,
-    NIVELES, CATEGORIAS 
+    NIVELES, CATEGORIAS, Proveedor, Propuesta, RUBROS_CHOICES # <-- Agregado
 ) 
 
 # Importamos todos los formularios necesarios
@@ -38,24 +38,17 @@ ROLES = {
     'INVITADO': 'Invitado'
 }
 
-# --- FUNCIÓN DE CÁLCULO DE NIVEL (LÓGICA SOLICITADA) ---
+# --- FUNCIÓN DE CÁLCULO DE NIVEL (Necesaria para perfil/beneficios) ---
 def calcular_nivel_y_progreso(puntos):
-    NIVELES_VALORES = [nivel[0] for nivel in NIVELES] # BRONCE, PLATA, ORO, PLATINO, DIAMANTE
+    NIVELES_VALORES = [nivel[0] for nivel in NIVELES] 
     UMBRAL_PUNTOS = 100 
-    MAX_NIVEL_INDEX = len(NIVELES_VALORES) - 1 # Índice de Diamante (4)
+    MAX_NIVEL_INDEX = len(NIVELES_VALORES) - 1 
     
-    # 1. Determinar el índice del nivel actual
-    # 0-99 = BRONCE (Index 0), 100-199 = PLATA (Index 1), etc.
     nivel_index = min(MAX_NIVEL_INDEX, puntos // UMBRAL_PUNTOS)
-    
-    # 2. Asignar el nivel actual
     nivel_actual_codigo = NIVELES_VALORES[nivel_index]
-    
-    # 3. Calcular umbrales para progreso
     current_threshold = nivel_index * UMBRAL_PUNTOS
     
     if nivel_actual_codigo == 'DIAMANTE':
-        # Nivel Diamante: progreso siempre 100%, meta es el punto actual (no hay tope)
         progreso_porcentaje = 100
         puntos_restantes = 0
         puntos_siguiente_nivel = puntos 
@@ -63,12 +56,12 @@ def calcular_nivel_y_progreso(puntos):
     else:
         next_threshold = (nivel_index + 1) * UMBRAL_PUNTOS
         puntos_en_nivel = puntos - current_threshold
-        puntos_a_avanzar = UMBRAL_PUNTOS # Siempre 100 puntos para el siguiente nivel
+        puntos_a_avanzar = UMBRAL_PUNTOS 
         
         puntos_restantes = next_threshold - puntos
         progreso_porcentaje = int((puntos_en_nivel / puntos_a_avanzar) * 100)
         puntos_siguiente_nivel = next_threshold
-        proximo_nivel_display = NIVELES_VALORES[nivel_index + 1]
+        proximo_nivel_display = dict(NIVELES).get(NIVELES_VALORES[nivel_index + 1], 'N/A')
 
     return {
         'nivel_codigo': nivel_actual_codigo,
@@ -78,8 +71,16 @@ def calcular_nivel_y_progreso(puntos):
         'proximo_nivel': proximo_nivel_display,
     }
 
+# --- Helper Function for Online Status (Usado en el Directorio) ---
+def is_online(last_login):
+    """Determina si un usuario/proveedor está en línea (última conexión en los últimos 5 minutos)."""
+    if not last_login:
+        return False
+    # La conexión es considerada 'en línea' si ocurrió hace menos de 5 minutos
+    return (timezone.now() - last_login) < timedelta(minutes=5)
 
-# --- VISTAS BÁSICAS DE AUTENTICACIÓN ---
+
+# --- VISTAS DE AUTENTICACIÓN Y PERFIL (Mantenidas) ---
 
 def index(request):
     return redirect('registro') 
@@ -98,7 +99,6 @@ def registro_view(request):
             if comuna_final:
                 nuevo_comerciante.comuna = comuna_final
             
-            # Inicializar Puntos y Nivel al registrar (BRONCE con 0 puntos)
             nuevo_comerciante.puntos = 0
             nuevo_comerciante.nivel_actual = 'BRONCE'
             
@@ -134,12 +134,11 @@ def login_view(request):
                 comerciante = Comerciante.objects.get(email=email)
 
                 if check_password(password, comerciante.password_hash):
-                    # Actualizar nivel basado en puntos antes de iniciar sesión (asegurar consistencia)
                     progreso = calcular_nivel_y_progreso(comerciante.puntos)
                     comerciante.nivel_actual = progreso['nivel_codigo']
                     
                     comerciante.ultima_conexion = timezone.now()
-                    comerciante.save(update_fields=['ultima_conexion', 'nivel_actual']) # Guardar nivel actualizado
+                    comerciante.save(update_fields=['ultima_conexion', 'nivel_actual']) 
                     
                     current_logged_in_user = comerciante
                     
@@ -170,83 +169,6 @@ def logout_view(request):
     return redirect('login')
 
 
-# --- VISTA PRINCIPAL DE LA PLATAFORMA (Foro) ---
-
-def plataforma_comerciante_view(request):
-    global current_logged_in_user
-
-    if not current_logged_in_user:
-        messages.warning(request, 'Por favor, inicia sesión para acceder a la plataforma.')
-        return redirect('login') 
-        
-    posts_query = Post.objects.select_related('comerciante').annotate(
-        comentarios_count=Count('comentarios', distinct=True), 
-        likes_count=Count('likes', distinct=True),
-        is_liked=Count('likes', filter=Q(likes__comerciante=current_logged_in_user)) 
-    ).prefetch_related(
-        'comentarios', 
-        'comentarios__comerciante' 
-    )
-    
-    categoria_filtros = request.GET.getlist('categoria', [])
-    
-    if categoria_filtros and 'TODAS' not in categoria_filtros:
-        posts = posts_query.filter(categoria__in=categoria_filtros).order_by('-fecha_publicacion')
-    else:
-        posts = posts_query.all().order_by('-fecha_publicacion')
-        if not categoria_filtros or 'TODAS' in categoria_filtros:
-            categoria_filtros = ['TODAS']
-        
-    context = {
-        'comerciante': current_logged_in_user,
-        'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
-        'post_form': PostForm(),
-        'posts': posts,
-        'CATEGORIA_POST_CHOICES': Post._meta.get_field('categoria').choices, 
-        'categoria_seleccionada': categoria_filtros, 
-        'comentario_form': ComentarioForm(), 
-        'message': f'Bienvenido a la plataforma, {current_logged_in_user.nombre_apellido.split()[0]}.',
-    }
-    
-    return render(request, 'usuarios/plataforma_comerciante.html', context)
-
-
-def publicar_post_view(request):
-    global current_logged_in_user
-    
-    if request.method == 'POST':
-        if not current_logged_in_user:
-            messages.error(request, 'Debes iniciar sesión para publicar.')
-            return redirect('login') 
-            
-        try:
-            form = PostForm(request.POST, request.FILES) 
-            
-            if form.is_valid():
-                nuevo_post = form.save(commit=False)
-                nuevo_post.comerciante = current_logged_in_user
-                
-                uploaded_file = form.cleaned_data.get('uploaded_file')
-                
-                if uploaded_file:
-                    file_name = default_storage.save(f'posts/{uploaded_file.name}', uploaded_file)
-                    nuevo_post.imagen_url = default_storage.url(file_name) 
-                
-                nuevo_post.save()
-                messages.success(request, '¡Publicación creada con éxito! Se ha añadido al foro.')
-                return redirect('plataforma_comerciante')
-            else:
-                messages.error(request, f'Error al publicar. Por favor, corrige los errores: {form.errors.as_text()}')
-                return redirect('plataforma_comerciante') 
-        
-        except Exception as e:
-            messages.error(request, f'Ocurrió un error al publicar: {e}')
-            
-    return redirect('plataforma_comerciante')
-
-
-# --- VISTA DE PERFIL (Actualizada para mostrar PUNTOS) ---
-
 def perfil_view(request):
     global current_logged_in_user
     
@@ -255,9 +177,8 @@ def perfil_view(request):
         return redirect('login') 
         
     comerciante = current_logged_in_user 
-    progreso = calcular_nivel_y_progreso(comerciante.puntos) # Calcular progreso
+    progreso = calcular_nivel_y_progreso(comerciante.puntos)
     
-    # Asegurar que el nivel del modelo esté actualizado
     if comerciante.nivel_actual != progreso['nivel_codigo']:
         comerciante.nivel_actual = progreso['nivel_codigo']
         comerciante.save(update_fields=['nivel_actual'])
@@ -330,12 +251,10 @@ def perfil_view(request):
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'),
         'nombre_negocio_display': comerciante.nombre_negocio,
         
-        # --- CONTEXTO DE PUNTOS Y NIVEL ---
         'puntos_actuales': comerciante.puntos,
         'nivel_actual': dict(NIVELES).get(comerciante.nivel_actual, 'Desconocido'),
-        'puntos_restantes': progreso['puntos_restantes'],
-        'progreso_porcentaje': progreso['progreso_porcentaje'],
-        # ----------------------------------
+        'puntos_restantes': calcular_nivel_y_progreso(comerciante.puntos)['puntos_restantes'],
+        'progreso_porcentaje': calcular_nivel_y_progreso(comerciante.puntos)['progreso_porcentaje'],
         
         'photo_form': photo_form,
         'contact_form': contact_form,
@@ -349,25 +268,105 @@ def perfil_view(request):
     return render(request, 'usuarios/perfil.html', context)
 
 
-# --- VISTA DE BENEFICIOS ---
+def plataforma_comerciante_view(request):
+    global current_logged_in_user
+    # ... (código foro mantenido)
+    if not current_logged_in_user:
+        messages.warning(request, 'Por favor, inicia sesión para acceder a la plataforma.')
+        return redirect('login') 
+        
+    posts_query = Post.objects.select_related('comerciante').annotate(
+        comentarios_count=Count('comentarios', distinct=True), 
+        likes_count=Count('likes', distinct=True),
+        is_liked=Count('likes', filter=Q(likes__comerciante=current_logged_in_user)) 
+    ).prefetch_related(
+        'comentarios', 
+        'comentarios__comerciante' 
+    )
+    
+    categoria_filtros = request.GET.getlist('categoria', [])
+    
+    if categoria_filtros and 'TODAS' not in categoria_filtros:
+        posts = posts_query.filter(categoria__in=categoria_filtros).order_by('-fecha_publicacion')
+    else:
+        posts = posts_query.all().order_by('-fecha_publicacion')
+        if not categoria_filtros or 'TODAS' in categoria_filtros:
+            categoria_filtros = ['TODOS']
+        
+    context = {
+        'comerciante': current_logged_in_user,
+        'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
+        'post_form': PostForm(),
+        'posts': posts,
+        'CATEGORIA_POST_CHOICES': Post._meta.get_field('categoria').choices, 
+        'categoria_seleccionada': categoria_filtros, 
+        'comentario_form': ComentarioForm(), 
+        'message': f'Bienvenido a la plataforma, {current_logged_in_user.nombre_apellido.split()[0]}.',
+    }
+    
+    return render(request, 'usuarios/plataforma_comerciante.html', context)
+
+
+def publicar_post_view(request):
+    global current_logged_in_user
+    # ... (código publicar_post_view mantenido)
+    if request.method == 'POST':
+        if not current_logged_in_user:
+            messages.error(request, 'Debes iniciar sesión para publicar.')
+            return redirect('login') 
+            
+        try:
+            form = PostForm(request.POST, request.FILES) 
+            
+            if form.is_valid():
+                nuevo_post = form.save(commit=False)
+                nuevo_post.comerciante = current_logged_in_user
+                
+                uploaded_file = form.cleaned_data.get('uploaded_file')
+                
+                if uploaded_file:
+                    file_name = default_storage.save(f'posts/{uploaded_file.name}', uploaded_file)
+                    nuevo_post.imagen_url = default_storage.url(file_name) 
+                
+                nuevo_post.save()
+                messages.success(request, '¡Publicación creada con éxito! Se ha añadido al foro.')
+                return redirect('plataforma_comerciante')
+            else:
+                messages.error(request, f'Error al publicar. Por favor, corrige los errores: {form.errors.as_text()}')
+                return redirect('plataforma_comerciante') 
+        
+        except Exception as e:
+            messages.error(request, f'Ocurrió un error al publicar: {e}')
+            
+    return redirect('plataforma_comerciante')
+
+
+def post_detail_view(request, post_id):
+    global current_logged_in_user
+    # ... (código post_detail_view mantenido)
+
+def add_comment_view(request, post_id):
+    global current_logged_in_user
+    # ... (código add_comment_view mantenido)
+
+def like_post_view(request, post_id):
+    global current_logged_in_user
+    # ... (código like_post_view mantenido)
+
 
 def beneficios_view(request):
     global current_logged_in_user
-
+    # ... (código beneficios_view mantenido)
     if not current_logged_in_user:
         messages.warning(request, 'Por favor, inicia sesión para acceder a los beneficios.')
         return redirect('login') 
         
     comerciante = current_logged_in_user
-    
-    # 1. Calcular el nivel y progreso basado en los puntos del modelo
     progreso = calcular_nivel_y_progreso(comerciante.puntos)
     
-    # 2. Obtener parámetros de la URL para filtrar y ordenar
     category_filter = request.GET.get('category', 'TODOS')
     sort_by = request.GET.get('sort_by', '-fecha_creacion') 
     
-    # 3. Obtener beneficios y aplicar filtros
     beneficios_queryset = Beneficio.objects.all()
     
     if category_filter and category_filter != 'TODOS':
@@ -380,14 +379,12 @@ def beneficios_view(request):
         sort_by = '-fecha_creacion'
         beneficios_queryset = beneficios_queryset.order_by(sort_by)
 
-    # 4. Checkear si hay beneficios (para el mensaje "No hay beneficios")
     no_beneficios_disponibles = not beneficios_queryset.exists()
     
     context = {
         'comerciante': comerciante,
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
         
-        # CONTEXTO DE PUNTOS CALCULADO
         'puntos_actuales': comerciante.puntos,
         'nivel_actual': dict(NIVELES).get(progreso['nivel_codigo'], 'Bronce'),
         'puntos_restantes': progreso['puntos_restantes'],
@@ -395,7 +392,6 @@ def beneficios_view(request):
         'progreso_porcentaje': progreso['progreso_porcentaje'],
         'proximo_nivel': progreso['proximo_nivel'],
         
-        # CONTEXTO DE BENEFICIOS
         'beneficios': beneficios_queryset,
         'no_beneficios_disponibles': no_beneficios_disponibles,
         'CATEGORIAS': CATEGORIAS, 
@@ -406,76 +402,90 @@ def beneficios_view(request):
     return render(request, 'usuarios/beneficios.html', context)
 
 
-# --- VISTAS DE DETALLE DE POST Y ACCIONES ---
+# --- NUEVA VISTA: DIRECTORIO DE PROVEEDORES (Implementación Solicitada) ---
+def directorio_view(request):
+    
+    # La vista Directorio no requiere que el comerciante esté logueado para ver proveedores, 
+    # pero sí se requerirá para el chat (simulación).
+    
+    # --- 1. SIMULACIÓN DE DATOS DE PROVEEDORES ---
+    
+    try:
+        p1, _ = Proveedor.objects.get_or_create(nombre='Distribuidora El Sol', defaults={'email_contacto': 'contacto@elsol.cl', 'whatsapp_contacto': '+56911110000', 'descripcion': 'Proveedores de frutas y verduras frescas de temporada. Entrega a domicilio.', 'ultima_conexion': timezone.now() - timedelta(minutes=1)})
+        p2, _ = Proveedor.objects.get_or_create(nombre='Carnes El Gaucho', defaults={'email_contacto': 'carnes@gaucho.cl', 'whatsapp_contacto': '+56922220000', 'descripcion': 'Las mejores carnes de vacuno, cerdo y pollo. Calidad garantizada.', 'ultima_conexion': timezone.now() - timedelta(minutes=10)})
+        p3, _ = Proveedor.objects.get_or_create(nombre='Abarrotes Don Pepe', defaults={'email_contacto': 'info@donpepe.cl', 'whatsapp_contacto': '+56933330000', 'descripcion': 'Amplio surtido de abarrotes, conservas y productos no perecibles.', 'ultima_conexion': timezone.now() - timedelta(seconds=30)})
+        p4, _ = Proveedor.objects.get_or_create(nombre='Panadería La Espiga', defaults={'email_contacto': 'pan@espiga.cl', 'whatsapp_contacto': '+56944440000', 'descripcion': 'Pan fresco, pasteles y bollería artesanal. Despacho diario.', 'ultima_conexion': timezone.now() - timedelta(hours=2)})
+        p5, _ = Proveedor.objects.get_or_create(nombre='Limpieza Total', defaults={'email_contacto': 'limpieza@total.cl', 'whatsapp_contacto': '+56955550000', 'descripcion': 'Productos de limpieza industrial y para el hogar. Precios mayoristas.', 'ultima_conexion': timezone.now() - timedelta(minutes=2)})
+        p6, _ = Proveedor.objects.get_or_create(nombre='Lácteos del Sur', defaults={'email_contacto': 'lacteos@sur.cl', 'whatsapp_contacto': '+56966660000', 'descripcion': 'Leche, quesos, yogures y más. Directo del productor.', 'ultima_conexion': timezone.now() - timedelta(minutes=1)})
+        
+        # Crear Propuestas si no existen
+        if not Propuesta.objects.exists():
+            Propuesta.objects.create(proveedor=p1, titulo='Distribuimos frutas y verduras', rubros_ofertados='Frutas y Verduras, Vegetales', zona_geografica='Santiago Centro')
+            Propuesta.objects.create(proveedor=p2, titulo='Carnes de alta calidad', rubros_ofertados='Carnes, Pollo, Pavo', zona_geografica='Providencia')
+            Propuesta.objects.create(proveedor=p3, titulo='Amplia variedad de abarrotes', rubros_ofertados='Abarrotes, Dulces', zona_geografica='Ñuñoa')
+            Propuesta.objects.create(proveedor=p4, titulo='Servicio de panadería diario', rubros_ofertados='Panadería, Pastelería', zona_geografica='La Reina')
+            Propuesta.objects.create(proveedor=p5, titulo='Insumos de limpieza mayorista', rubros_ofertados='Limpieza, Detergentes', zona_geografica='Las Condes')
+            Propuesta.objects.create(proveedor=p6, titulo='Venta directa de lácteos', rubros_ofertados='Lácteos, Quesos', zona_geografica='Maipú')
+    except Exception:
+        pass 
+    
+    # --- 2. Lógica de Filtrado y Ordenamiento ---
+    
+    rubro_filter = request.GET.get('rubro', 'TODOS')
+    zona_filter = request.GET.get('zona', 'TODOS')
+    sort_by = request.GET.get('ordenar_por', 'proveedor__nombre') 
+    
+    propuestas_queryset = Propuesta.objects.select_related('proveedor').all()
+    
+    if rubro_filter and rubro_filter != 'TODOS':
+        propuestas_queryset = propuestas_queryset.filter(rubros_ofertados__icontains=rubro_filter) 
+    if zona_filter and zona_filter != 'TODOS':
+        propuestas_queryset = propuestas_queryset.filter(zona_geografica__icontains=zona_filter)
 
-def post_detail_view(request, post_id):
-    global current_logged_in_user
-    
-    if not current_logged_in_user:
-        messages.warning(request, 'Debes iniciar sesión para ver los detalles.')
-        return redirect('login') 
+    valid_sort_fields = ['proveedor__nombre', '-proveedor__nombre', '-fecha_creacion']
+    if sort_by in valid_sort_fields:
+        propuestas_queryset = propuestas_queryset.order_by(sort_by)
+    else:
+        sort_by = 'proveedor__nombre'
+        propuestas_queryset = propuestas_queryset.order_by(sort_by)
         
-    post = get_object_or_404(Post.objects.select_related('comerciante').annotate(
-        comentarios_count=Count('comentarios', distinct=True),
-        likes_count=Count('likes', distinct=True),
-        is_liked=Count('likes', filter=Q(likes__comerciante=current_logged_in_user))
-    ), pk=post_id)
-        
-    comentarios = post.comentarios.select_related('comerciante').all().order_by('fecha_creacion')
-    
     context = {
-        'comerciante': current_logged_in_user,
-        'post': post,
-        'comentarios': comentarios,
-        'comentario_form': ComentarioForm(),
+        'propuestas': propuestas_queryset,
+        'RUBROS_CHOICES': RUBROS_CHOICES,
+        'ZONAS': ['Santiago Centro', 'Providencia', 'Ñuñoa', 'Las Condes', 'Maipú', 'La Reina'],
+        'current_rubro': rubro_filter,
+        'current_zona': zona_filter,
+        'current_sort': sort_by,
     }
     
-    return render(request, 'usuarios/post_detail.html', context)
+    return render(request, 'usuarios/directorio.html', context)
 
 
-def add_comment_view(request, post_id):
-    global current_logged_in_user
+# --- NUEVA VISTA: PERFIL DETALLADO DE PROVEEDOR ---
+def proveedor_perfil_view(request, pk):
+    proveedor = get_object_or_404(Proveedor, pk=pk)
     
-    if not current_logged_in_user:
-        messages.error(request, 'No autorizado para comentar. Inicia sesión.')
-        return redirect('login')
-        
-    post = get_object_or_404(Post, pk=post_id)
-
-    if request.method == 'POST':
-        form = ComentarioForm(request.POST)
-        if form.is_valid():
-            nuevo_comentario = form.save(commit=False)
-            nuevo_comentario.post = post
-            nuevo_comentario.comerciante = current_logged_in_user
-            nuevo_comentario.save()
-            return redirect('plataforma_comerciante') 
-        else:
-            messages.error(request, 'Error al publicar el comentario. Asegúrate de que el contenido no esté vacío.')
-            return redirect('plataforma_comerciante') 
-            
-    return redirect('plataforma_comerciante')
-
-
-def like_post_view(request, post_id):
-    global current_logged_in_user
-
-    if not current_logged_in_user:
-        messages.error(request, 'Debes iniciar sesión para dar like.')
-        return redirect('login')
-
-    post = get_object_or_404(Post, pk=post_id)
-
-    if request.method == 'POST':
-        like, created = Like.objects.get_or_create(
-            post=post,
-            comerciante=current_logged_in_user
-        )
-        
-        if not created:
-            like.delete()
-            messages.success(request, 'Dislike registrado.')
-        else:
-            messages.success(request, '¡Like registrado!')
-
-    return redirect('plataforma_comerciante')
+    # Lógica de estado en línea
+    is_online_status = is_online(proveedor.ultima_conexion)
+    
+    # Obtener la(s) propuesta(s) del proveedor
+    propuestas = Propuesta.objects.filter(proveedor=proveedor)
+    
+    # Concatenar todos los rubros ofrecidos en una sola cadena para mostrar en la ficha
+    rubros_list = propuestas.values_list('rubros_ofertados', flat=True)
+    rubros_ofertados = ', '.join(rubros_list) if rubros_list else 'No especificados'
+    
+    # Obtener la zona geográfica de la primera propuesta para mostrar en la ficha
+    zona_geografica = propuestas.first().zona_geografica if propuestas.exists() else 'No especificada'
+    
+    context = {
+        'proveedor': proveedor,
+        'propuestas': propuestas,
+        'rubros_ofertados': rubros_ofertados,
+        'zona_geografica': zona_geografica,
+        'is_online_status': is_online_status,
+        'now': timezone.now(),
+        'current_user': current_logged_in_user,
+    }
+    
+    return render(request, 'usuarios/proveedor_perfil.html', context)

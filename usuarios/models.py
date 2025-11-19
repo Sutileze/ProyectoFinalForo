@@ -49,7 +49,7 @@ INTERESTS_CHOICES = [
     ('SEGUROS', 'Seguros para Negocios'),
 ]
 
-# Categorías para publicaciones del foro (ESTADO RESTAURADO)
+# Categorías para publicaciones del foro (MANTENIDO)
 CATEGORIA_POST_CHOICES = [
     ('DUDA', 'Duda / Pregunta'),
     ('OPINION', 'Opinión / Debate'),
@@ -58,7 +58,7 @@ CATEGORIA_POST_CHOICES = [
     ('GENERAL', 'General'),
 ]
 
-# Definición de CATEGORIAS para Beneficio (usado en views.py)
+# Definición de CATEGORIAS para Beneficio (Mantenido)
 CATEGORIAS = [
     ('DESCUENTO', 'Descuento y Ofertas'),
     ('SORTEO', 'Sorteos y Rifas'),
@@ -82,9 +82,19 @@ NIVELES = [
     ('DIAMANTE', 'Diamante'),
 ]
 
+# --- NUEVAS CONSTANTES PARA PROVEEDORES ---
+RUBROS_CHOICES = [
+    ('ABARROTES', 'Abarrotes'),
+    ('CARNES', 'Carnes'),
+    ('LACTEOS', 'Lácteos'),
+    ('FRUTAS', 'Frutas y Verduras'),
+    ('LIMPIEZA', 'Limpieza'),
+    ('PANADERIA', 'Panadería'),
+    ('VARIOS', 'Varios'),
+]
 
 class Comerciante(models.Model):
-    # Campos de Autenticación y Contacto
+    # ... (Campos de Comerciante existentes)
     nombre_apellido = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     password_hash = models.CharField(max_length=128) 
@@ -126,7 +136,7 @@ class Comerciante(models.Model):
     )
     
     # --- CAMPOS DE PUNTOS ---
-    puntos = models.IntegerField(default=0, verbose_name='Puntos Acumulados') # Inicia en 0
+    puntos = models.IntegerField(default=0, verbose_name='Puntos Acumulados')
     nivel_actual = models.CharField(max_length=50, choices=NIVELES, default='BRONCE', verbose_name='Nivel de Beneficios')
 
     class Meta:
@@ -142,6 +152,8 @@ class Comerciante(models.Model):
             return self.foto_perfil.url
         return static('img/default_profile.png')
 
+
+# --- MODELOS DE FORO (RESTAURADOS a la app usuarios) ---
 
 class Post(models.Model):
     """Modelo que representa una publicación en el foro."""
@@ -166,7 +178,6 @@ class Post(models.Model):
     def __str__(self):
         return f"[{self.get_categoria_display()}] {self.titulo} por {self.comerciante.nombre_apellido}"
 
-# --- MODELOS COMENTARIOS Y LIKES ---
 class Comentario(models.Model):
     post = models.ForeignKey(
         Post, 
@@ -215,22 +226,15 @@ class Like(models.Model):
         return f"Like de {self.comerciante.nombre_apellido} a {self.post.titulo[:20]}"
 
 
-# --- MODELO BENEFICIO (Requerimiento) ---
+# --- MODELO BENEFICIO (Mantenido) ---
 class Beneficio(models.Model):
     titulo = models.CharField(max_length=200, verbose_name="Título del Beneficio")
     descripcion = models.TextField(verbose_name="Descripción")
     foto = models.ImageField(upload_to='beneficios_fotos/', null=True, blank=True, verbose_name="Imagen") 
-    
-    # CORREGIDO: Vuelve a ser opcional para evitar errores de migración.
     vence = models.DateField(null=True, blank=True, verbose_name="Fecha de Vencimiento") 
-    
     categoria = models.CharField(max_length=50, choices=CATEGORIAS, default='DESCUENTO', verbose_name="Categoría") 
-    
-    # Campos de gestión
     puntos_requeridos = models.IntegerField(default=0, verbose_name="Puntos Requeridos")
     estado = models.CharField(max_length=30, choices=ESTADO_BENEFICIO, default='ACTIVO')
-    
-    # Campo para registrar quién subió el beneficio
     creado_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL, 
@@ -247,3 +251,48 @@ class Beneficio(models.Model):
 
     def __str__(self):
         return f"[{self.get_categoria_display()}] {self.titulo}"
+
+
+# --- NUEVOS MODELOS PARA EL DIRECTORIO DE PROVEEDORES ---
+
+class Proveedor(models.Model):
+    # Ficha base
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(max_length=500, blank=True)
+    foto_perfil = models.ImageField(upload_to='proveedores/fotos/', null=True, blank=True)
+    
+    # Datos de Contacto Externo (Requerimiento de la Ficha)
+    email_contacto = models.EmailField(blank=True, null=True)
+    whatsapp_contacto = models.CharField(max_length=12, blank=True, null=True, help_text="Formato: +569XXXXXXXX")
+    
+    # Gestión de estado en línea
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    ultima_conexion = models.DateTimeField(default=timezone.now) # Usado para el estado 'en línea'
+
+    class Meta:
+        verbose_name = 'Proveedor'
+        verbose_name_plural = 'Proveedores'
+
+    def __str__(self):
+        return self.nombre
+    
+    def get_profile_picture_url(self):
+        DEFAULT_IMAGE_PATH = 'usuarios/img/default_profile.png'
+        if self.foto_perfil.name and self.foto_perfil.name != DEFAULT_IMAGE_PATH:
+            return self.foto_perfil.url
+        return static('img/default_profile.png')
+
+
+class Propuesta(models.Model):
+    # La propuesta o "post" del proveedor (Simula el post que sube el proveedor)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='propuestas')
+    titulo = models.CharField(max_length=100)
+    rubros_ofertados = models.CharField(max_length=255, verbose_name='Rubros Ofertados', help_text='Separados por coma')
+    zona_geografica = models.CharField(max_length=100)
+    
+    class Meta:
+        verbose_name = "Propuesta de Proveedor"
+        verbose_name_plural = "Propuestas de Proveedores"
+        
+    def __str__(self):
+        return f"{self.titulo} - {self.proveedor.nombre}"

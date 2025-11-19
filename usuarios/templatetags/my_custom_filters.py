@@ -19,3 +19,17 @@ def add(value, arg):
             return value + arg
         except TypeError:
             return value
+
+@register.filter
+def split(value, arg):
+    """Divide una cadena por el argumento dado."""
+    if value is None:
+        return []
+    return value.split(arg)
+
+@register.filter
+def trim(value):
+    """Elimina los espacios en blanco iniciales y finales de una cadena."""
+    if isinstance(value, str):
+        return value.strip()
+    return value
