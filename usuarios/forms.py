@@ -1,4 +1,4 @@
-# usuarios/forms.py (CONTENIDO RESTAURADO)
+# usuarios/forms.py (CONTENIDO COMPLETO MODIFICADO)
 
 from django import forms
 from .models import (
@@ -137,22 +137,17 @@ class PostForm(forms.ModelForm):
         cleaned_data = super().clean()
         
         url_link = self.cleaned_data.get('url_link')
-        uploaded_file = self.cleaned_data.get('uploaded_file') # Obtenido del formulario
+        uploaded_file = self.cleaned_data.get('uploaded_file')
         etiquetas_input = self.cleaned_data.pop('etiquetas_input', None)
 
-        # Validación: No permitir link y archivo al mismo tiempo
         if uploaded_file and url_link:
             self.add_error(None, "Solo puedes subir un archivo O proporcionar un link URL, no ambos.")
             
-        # Si se proporciona un link, lo asignamos al campo que será guardado en la DB
         if url_link:
             cleaned_data['imagen_url'] = url_link
         
         if etiquetas_input:
             cleaned_data['etiquetas'] = etiquetas_input
-
-        # Si se sube un archivo, el campo 'uploaded_file' contendrá el objeto File.
-        # La vista (views.py) es la que se encarga de guardar este archivo y actualizar 'imagen_url'.
         
         return cleaned_data
     
@@ -161,7 +156,6 @@ class ProfilePhotoForm(forms.ModelForm):
     class Meta:
         model = Comerciante
         fields = ['foto_perfil']
-        # No añadimos widgets aquí, el diseño se maneja con JS y CSS en el HTML.
         
 class BusinessDataForm(forms.ModelForm):
     """Formulario para actualizar los datos del negocio (Relación, Tipo, Comuna, Nombre)."""

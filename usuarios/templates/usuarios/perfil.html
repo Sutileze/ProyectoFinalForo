@@ -45,10 +45,9 @@
                     </div>
                     <nav class="hidden md:flex gap-6 text-text-muted-light dark:text-text-muted-dark font-semibold text-sm">
                         <a href="{% url 'plataforma_comerciante' %}" class="hover:text-primary transition-colors">Plataforma</a>
-                        <a href="{% url 'beneficios' %}" class="hover:text-primary transition-colors">Beneficios</a> 
-                        <a href="#" class="hover:text-primary transition-colors">Directorio</a>
-                        <a href="#" class="hover:text-primary transition-colors">Recursos</a>
-                        <a href="#" class="hover:text-primary transition-colors">Comunidad</a>
+                        <a href="{% url 'directorio' %}" class="hover:text-primary transition-colors">Proveedores</a> 
+                        <a href="{% url 'beneficios' %}" class="hover:text-primary transition-colors">Beneficios</a>
+                        <a href="{% url 'perfil' %}" class="text-primary transition-colors">Perfil</a>
                     </nav>
                 </div>
                 <div class="flex justify-end gap-4 items-center">
@@ -118,6 +117,26 @@
                                     <div class="mt-3 text-xs text-text-muted-light">
                                         Faltan {{ puntos_restantes }} puntos para subir al nivel {{ progreso_porcentaje|add:0 }}
                                     </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="border-t pt-4">
+                                    <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-4">Gestión de Roles</h3>
+                                    
+                                    {% if comerciante.es_proveedor %}
+                                        <p class="text-sm font-semibold text-green-600 mb-3">Rol de Proveedor: ¡ACTIVO!</p>
+                                        <a href="{% url 'proveedor_dashboard' %}" 
+                                           class="w-full inline-flex items-center justify-center p-2 bg-secondary text-white text-sm font-bold rounded-lg hover:bg-secondary/90 transition-colors">
+                                            Ir al Dashboard de Proveedor
+                                        </a>
+                                    {% else %}
+                                        <p class="text-sm text-text-muted-light mb-3">¿Deseas ofrecer tus insumos o servicios a otros comerciantes?</p>
+                                        <form method="POST" action="{% url 'solicitar_proveedor' %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="w-full p-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors">
+                                                Solicitar Rol de Proveedor
+                                            </button>
+                                        </form>
                                     {% endif %}
                                 </div>
                                 <div class="border-t pt-4">
@@ -199,7 +218,7 @@
             </main>
         </div>
     </div>
-
+    
     <div id="editPhotoModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>
     <div id="editContactModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>
     <div id="editBusinessModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity">...</div>

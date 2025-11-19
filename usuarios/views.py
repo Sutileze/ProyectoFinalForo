@@ -1,4 +1,4 @@
-# usuarios/views.py (CONTENIDO COMPLETO MODIFICADO CON DIRECTORIO)
+# usuarios/views.py (CÓDIGO COMPLETO Y FINAL)
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required
 # Importamos todos los modelos y opciones
 from .models import (
     Comerciante, Post, Like, Comentario, INTERESTS_CHOICES, Beneficio,
-    NIVELES, CATEGORIAS, Proveedor, Propuesta, RUBROS_CHOICES # <-- Agregado
+    NIVELES, CATEGORIAS, Proveedor, Propuesta, RUBROS_CHOICES 
 ) 
 
 # Importamos todos los formularios necesarios
@@ -34,11 +34,12 @@ current_logged_in_user = None
 # Definición de Roles
 ROLES = {
     'COMERCIANTE': 'Comerciante Verificado',
+    'PROVEEDOR': 'Proveedor', 
     'ADMIN': 'Administrador',
     'INVITADO': 'Invitado'
 }
 
-# --- FUNCIÓN DE CÁLCULO DE NIVEL (Necesaria para perfil/beneficios) ---
+# --- FUNCIÓN DE CÁLCULO DE NIVEL ---
 def calcular_nivel_y_progreso(puntos):
     NIVELES_VALORES = [nivel[0] for nivel in NIVELES] 
     UMBRAL_PUNTOS = 100 
@@ -71,16 +72,15 @@ def calcular_nivel_y_progreso(puntos):
         'proximo_nivel': proximo_nivel_display,
     }
 
-# --- Helper Function for Online Status (Usado en el Directorio) ---
+# --- Helper Function for Online Status ---
 def is_online(last_login):
     """Determina si un usuario/proveedor está en línea (última conexión en los últimos 5 minutos)."""
     if not last_login:
         return False
-    # La conexión es considerada 'en línea' si ocurrió hace menos de 5 minutos
     return (timezone.now() - last_login) < timedelta(minutes=5)
 
 
-# --- VISTAS DE AUTENTICACIÓN Y PERFIL (Mantenidas) ---
+# --- VISTAS DE AUTENTICACIÓN Y PERFIL ---
 
 def index(request):
     return redirect('registro') 
@@ -143,6 +143,8 @@ def login_view(request):
                     current_logged_in_user = comerciante
                     
                     messages.success(request, f'¡Bienvenido {comerciante.nombre_apellido}!')
+                    if comerciante.es_proveedor:
+                        return redirect('proveedor_dashboard')
                     return redirect('plataforma_comerciante')
                 else:
                     messages.error(request, 'Contraseña incorrecta. Intenta nuevamente.')
@@ -255,6 +257,7 @@ def perfil_view(request):
         'nivel_actual': dict(NIVELES).get(comerciante.nivel_actual, 'Desconocido'),
         'puntos_restantes': calcular_nivel_y_progreso(comerciante.puntos)['puntos_restantes'],
         'progreso_porcentaje': calcular_nivel_y_progreso(comerciante.puntos)['progreso_porcentaje'],
+        'es_proveedor': comerciante.es_proveedor, 
         
         'photo_form': photo_form,
         'contact_form': contact_form,
@@ -268,9 +271,11 @@ def perfil_view(request):
     return render(request, 'usuarios/perfil.html', context)
 
 
+# --- VISTA PRINCIPAL DE LA PLATAFORMA (Foro) ---
+
 def plataforma_comerciante_view(request):
     global current_logged_in_user
-    # ... (código foro mantenido)
+
     if not current_logged_in_user:
         messages.warning(request, 'Por favor, inicia sesión para acceder a la plataforma.')
         return redirect('login') 
@@ -309,7 +314,7 @@ def plataforma_comerciante_view(request):
 
 def publicar_post_view(request):
     global current_logged_in_user
-    # ... (código publicar_post_view mantenido)
+    
     if request.method == 'POST':
         if not current_logged_in_user:
             messages.error(request, 'Debes iniciar sesión para publicar.')
@@ -343,20 +348,83 @@ def publicar_post_view(request):
 
 def post_detail_view(request, post_id):
     global current_logged_in_user
-    # ... (código post_detail_view mantenido)
+    
+    if not current_logged_in_user:
+        messages.warning(request, 'Debes iniciar sesión para ver los detalles.')
+        return redirect('login') 
+        
+    post = get_object_or_404(Post.objects.select_related('comerciante').annotate(
+        comentarios_count=Count('comentarios', distinct=True),
+        likes_count=Count('likes', distinct=True),
+        is_liked=Count('likes', filter=Q(likes__comerciante=current_logged_in_user))
+    ), pk=post_id)
+        
+    comentarios = post.comentarios.select_related('comerciante').all().order_by('fecha_creacion')
+    
+    context = {
+        'comerciante': current_logged_in_user,
+        'post': post,
+        'comentarios': comentarios,
+        'comentario_form': ComentarioForm(),
+    }
+    
+    return render(request, 'usuarios/post_detail.html', context)
+
 
 def add_comment_view(request, post_id):
     global current_logged_in_user
-    # ... (código add_comment_view mantenido)
+    
+    if not current_logged_in_user:
+        messages.error(request, 'No autorizado para comentar. Inicia sesión.')
+        return redirect('login')
+        
+    post = get_object_or_404(Post, pk=post_id)
+
+    if request.method == 'POST':
+        form = ComentarioForm(request.POST)
+        if form.is_valid():
+            nuevo_comentario = form.save(commit=False)
+            nuevo_comentario.post = post
+            nuevo_comentario.comerciante = current_logged_in_user
+            nuevo_comentario.save()
+            messages.success(request, '¡Comentario publicado con éxito!')
+            return redirect('plataforma_comerciante') 
+        else:
+            messages.error(request, 'Error al publicar el comentario. Asegúrate de que el contenido no esté vacío.')
+            return redirect('plataforma_comerciante') 
+            
+    return redirect('plataforma_comerciante')
+
 
 def like_post_view(request, post_id):
     global current_logged_in_user
-    # ... (código like_post_view mantenido)
 
+    if not current_logged_in_user:
+        messages.error(request, 'Debes iniciar sesión para dar like.')
+        return redirect('login')
+
+    post = get_object_or_404(Post, pk=post_id)
+
+    if request.method == 'POST':
+        like, created = Like.objects.get_or_create(
+            post=post,
+            comerciante=current_logged_in_user
+        )
+        
+        if not created:
+            like.delete()
+            messages.success(request, 'Dislike registrado.')
+        else:
+            messages.success(request, '¡Like registrado!')
+
+    return redirect('plataforma_comerciante')
+
+
+# --- VISTA DE BENEFICIOS ---
 
 def beneficios_view(request):
     global current_logged_in_user
-    # ... (código beneficios_view mantenido)
+
     if not current_logged_in_user:
         messages.warning(request, 'Por favor, inicia sesión para acceder a los beneficios.')
         return redirect('login') 
@@ -402,13 +470,54 @@ def beneficios_view(request):
     return render(request, 'usuarios/beneficios.html', context)
 
 
-# --- NUEVA VISTA: DIRECTORIO DE PROVEEDORES (Implementación Solicitada) ---
+# --- GESTIÓN DE ROLES (NUEVO) ---
+
+def solicitar_rol_proveedor_view(request):
+    global current_logged_in_user
+
+    if not current_logged_in_user:
+        messages.warning(request, 'Debes iniciar sesión para realizar esta solicitud.')
+        return redirect('login') 
+
+    if request.method == 'POST':
+        if current_logged_in_user.es_proveedor:
+            messages.info(request, 'Ya tienes el rol de proveedor activo.')
+            return redirect('proveedor_dashboard')
+        
+        messages.success(request, '¡Solicitud de rol de Proveedor enviada! Un administrador revisará tu solicitud.')
+        
+        return redirect('perfil') 
+    
+    return redirect('perfil')
+
+
+def proveedor_dashboard_view(request):
+    global current_logged_in_user
+
+    if not current_logged_in_user or not current_logged_in_user.es_proveedor:
+        messages.warning(request, 'Acceso denegado. Esta interfaz es solo para Proveedores activos.')
+        return redirect('perfil')
+    
+    # Obtener propuestas publicadas por el Comerciante (asumimos que el nombre del Proveedor coincide con el nombre del negocio del Comerciante)
+    try:
+        proveedor_qs = Proveedor.objects.get(nombre=current_logged_in_user.nombre_negocio)
+        propuestas = Propuesta.objects.filter(proveedor=proveedor_qs).order_by('-id')
+    except Proveedor.DoesNotExist:
+        propuestas = []
+        
+    context = {
+        'comerciante': current_logged_in_user,
+        'propuestas': propuestas,
+        'rol_display': ROLES.get('PROVEEDOR', 'Proveedor'),
+    }
+    
+    return render(request, 'usuarios/proveedor_dashboard.html', context)
+
+
+# --- VISTAS DEL DIRECTORIO (NUEVO) ---
 def directorio_view(request):
     
-    # La vista Directorio no requiere que el comerciante esté logueado para ver proveedores, 
-    # pero sí se requerirá para el chat (simulación).
-    
-    # --- 1. SIMULACIÓN DE DATOS DE PROVEEDORES ---
+    # --- 1. SIMULACIÓN DE DATOS DE PROVEEDORES (Para asegurar que hay datos para mostrar) ---
     
     try:
         p1, _ = Proveedor.objects.get_or_create(nombre='Distribuidora El Sol', defaults={'email_contacto': 'contacto@elsol.cl', 'whatsapp_contacto': '+56911110000', 'descripcion': 'Proveedores de frutas y verduras frescas de temporada. Entrega a domicilio.', 'ultima_conexion': timezone.now() - timedelta(minutes=1)})
@@ -456,26 +565,22 @@ def directorio_view(request):
         'current_rubro': rubro_filter,
         'current_zona': zona_filter,
         'current_sort': sort_by,
+        'comerciante': current_logged_in_user,
     }
     
     return render(request, 'usuarios/directorio.html', context)
 
 
-# --- NUEVA VISTA: PERFIL DETALLADO DE PROVEEDOR ---
 def proveedor_perfil_view(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     
-    # Lógica de estado en línea
     is_online_status = is_online(proveedor.ultima_conexion)
     
-    # Obtener la(s) propuesta(s) del proveedor
     propuestas = Propuesta.objects.filter(proveedor=proveedor)
     
-    # Concatenar todos los rubros ofrecidos en una sola cadena para mostrar en la ficha
     rubros_list = propuestas.values_list('rubros_ofertados', flat=True)
     rubros_ofertados = ', '.join(rubros_list) if rubros_list else 'No especificados'
     
-    # Obtener la zona geográfica de la primera propuesta para mostrar en la ficha
     zona_geografica = propuestas.first().zona_geografica if propuestas.exists() else 'No especificada'
     
     context = {

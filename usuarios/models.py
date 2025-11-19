@@ -82,7 +82,6 @@ NIVELES = [
     ('DIAMANTE', 'Diamante'),
 ]
 
-# --- NUEVAS CONSTANTES PARA PROVEEDORES ---
 RUBROS_CHOICES = [
     ('ABARROTES', 'Abarrotes'),
     ('CARNES', 'Carnes'),
@@ -92,6 +91,8 @@ RUBROS_CHOICES = [
     ('PANADERIA', 'Panadería'),
     ('VARIOS', 'Varios'),
 ]
+
+# --- MODELO PRINCIPAL DE COMERCIANTE ---
 
 class Comerciante(models.Model):
     # ... (Campos de Comerciante existentes)
@@ -111,17 +112,13 @@ class Comerciante(models.Model):
         help_text="Formato: +569XXXXXXXX"
     )
 
-    # Campos de Negocio
     relacion_negocio = models.CharField(max_length=10, choices=RELACION_NEGOCIO_CHOICES)
     tipo_negocio = models.CharField(max_length=20, choices=TIPO_NEGOCIO_CHOICES)
     comuna = models.CharField(max_length=50) 
     nombre_negocio = models.CharField(max_length=100, default='Mi Negocio Local', blank=True)
-
-    # Campos de Auditoría
     fecha_registro = models.DateTimeField(auto_now_add=True)
     ultima_conexion = models.DateTimeField(default=timezone.now)
 
-    # Campos de Perfil
     foto_perfil = models.ImageField(
         upload_to='perfiles/', 
         default='usuarios/img/default_profile.png', 
@@ -135,9 +132,12 @@ class Comerciante(models.Model):
         help_text="Códigos de intereses separados por coma."
     )
     
-    # --- CAMPOS DE PUNTOS ---
+    # --- CAMPOS DE PUNTOS Y ROLES ---
     puntos = models.IntegerField(default=0, verbose_name='Puntos Acumulados')
     nivel_actual = models.CharField(max_length=50, choices=NIVELES, default='BRONCE', verbose_name='Nivel de Beneficios')
+    
+    # NUEVO CAMPO: Campo que causó el error anterior (debe estar aquí)
+    es_proveedor = models.BooleanField(default=False, verbose_name='Es Proveedor')
 
     class Meta:
         verbose_name = 'Comerciante'
@@ -153,7 +153,7 @@ class Comerciante(models.Model):
         return static('img/default_profile.png')
 
 
-# --- MODELOS DE FORO (RESTAURADOS a la app usuarios) ---
+# --- MODELOS DE FORO (Post, Comentario, Like) ---
 
 class Post(models.Model):
     """Modelo que representa una publicación en el foro."""
@@ -226,7 +226,7 @@ class Like(models.Model):
         return f"Like de {self.comerciante.nombre_apellido} a {self.post.titulo[:20]}"
 
 
-# --- MODELO BENEFICIO (Mantenido) ---
+# --- MODELO BENEFICIO ---
 class Beneficio(models.Model):
     titulo = models.CharField(max_length=200, verbose_name="Título del Beneficio")
     descripcion = models.TextField(verbose_name="Descripción")
@@ -253,7 +253,7 @@ class Beneficio(models.Model):
         return f"[{self.get_categoria_display()}] {self.titulo}"
 
 
-# --- NUEVOS MODELOS PARA EL DIRECTORIO DE PROVEEDORES ---
+# --- MODELOS PARA EL DIRECTORIO DE PROVEEDORES ---
 
 class Proveedor(models.Model):
     # Ficha base

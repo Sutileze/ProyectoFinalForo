@@ -17,9 +17,13 @@ urlpatterns = [
     path('perfil/', views.perfil_view, name='perfil'),
     path('beneficios/', views.beneficios_view, name='beneficios'),
     
-    # DIRECTORIO DE PROVEEDORES (NUEVAS RUTAS)
+    # DIRECTORIO DE PROVEEDORES
     path('directorio/', views.directorio_view, name='directorio'),
     path('directorio/<int:pk>/', views.proveedor_perfil_view, name='proveedor_perfil'),
+    
+    # GESTIÓN DE ROLES (NUEVAS RUTAS AÑADIDAS)
+    path('proveedor/solicitar/', views.solicitar_rol_proveedor_view, name='solicitar_proveedor'),
+    path('proveedores/dashboard/', views.proveedor_dashboard_view, name='proveedor_dashboard'),
     
     # POSTS (DETALLE, COMENTARIO, LIKE)
     path('post/<int:post_id>/', views.post_detail_view, name='post_detail'),
