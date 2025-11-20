@@ -17,6 +17,7 @@ RELACION_NEGOCIO_CHOICES = [
     ('FAMILIAR', 'Familiar a cargo'),
 ]
 
+# MODIFICADO: 21 Categorías de Negocio
 TIPO_NEGOCIO_CHOICES = [
     ('ALMACEN', 'Almacén de Barrio'),
     ('MINIMARKET', 'Minimarket'),
@@ -25,6 +26,20 @@ TIPO_NEGOCIO_CHOICES = [
     ('FERIA', 'Feria Libre'),
     ('KIOSCO', 'Kiosco'),
     ('FOODTRUCK', 'Food Truck/Carro de Comida'),
+    ('PELUQUERIA', 'Peluquería / Barbería'),
+    ('FARMACIA', 'Farmacia / Botica'),
+    ('LAVANDERIA', 'Lavandería'),
+    ('LIBRERIA', 'Librería / Papelería'),
+    ('REPARACION', 'Reparación de Calzado/Ropa'),
+    ('FLORERIA', 'Florería'),
+    ('TECNOLOGIA_ACC', 'Tecnología / Accesorios'),
+    ('MASCOTAS', 'Productos para Mascotas'),
+    ('COMIDA_RAPIDA', 'Comida Rápida (Local/Delivery)'),
+    ('ARTESANIA', 'Artesanía / Regalos'),
+    ('FERRETERIA', 'Ferretería'),
+    ('VERDULERIA', 'Verdulería / Frutería'),
+    ('JUGUETERIA', 'Juguetería'),
+    ('VESTUARIO', 'Vestuario / Ropa Usada'),
 ]
 
 # Opciones de Intereses (Mínimo 15 para la selección)
@@ -132,11 +147,8 @@ class Comerciante(models.Model):
         help_text="Códigos de intereses separados por coma."
     )
     
-    # --- CAMPOS DE PUNTOS Y ROLES ---
     puntos = models.IntegerField(default=0, verbose_name='Puntos Acumulados')
     nivel_actual = models.CharField(max_length=50, choices=NIVELES, default='BRONCE', verbose_name='Nivel de Beneficios')
-    
-    # NUEVO CAMPO: Campo que causó el error anterior (debe estar aquí)
     es_proveedor = models.BooleanField(default=False, verbose_name='Es Proveedor')
 
     class Meta:
@@ -274,7 +286,7 @@ class Proveedor(models.Model):
         verbose_name_plural = 'Proveedores'
 
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre}"
     
     def get_profile_picture_url(self):
         DEFAULT_IMAGE_PATH = 'usuarios/img/default_profile.png'
@@ -296,3 +308,27 @@ class Propuesta(models.Model):
         
     def __str__(self):
         return f"{self.titulo} - {self.proveedor.nombre}"
+
+
+# --- NUEVO MODELO DE NOTIFICACIÓN ---
+class Notificacion(models.Model):
+    """Almacena notificaciones para los Comerciantes."""
+    comerciante = models.ForeignKey(
+        Comerciante, 
+        on_delete=models.CASCADE, 
+        related_name='notificaciones'
+    )
+    nombre = models.CharField(max_length=100, help_text="Título o nombre de la notificación.")
+    descripcion = models.TextField(help_text="Descripción o cuerpo del mensaje.")
+    remitente = models.CharField(max_length=100, blank=True, null=True, help_text="Quién generó la notificación (e.g., Admin, Foro, Proveedor).")
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    leido = models.BooleanField(default=False)
+    enlace_url = models.URLField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Notificación'
+        verbose_name_plural = 'Notificaciones'
+
+    def __str__(self):
+        return f"{self.nombre} para {self.comerciante.nombre_apellido}"

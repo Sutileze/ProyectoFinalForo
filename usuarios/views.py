@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required
 # Importamos todos los modelos y opciones
 from .models import (
     Comerciante, Post, Like, Comentario, INTERESTS_CHOICES, Beneficio,
-    NIVELES, CATEGORIAS, Proveedor, Propuesta, RUBROS_CHOICES 
+    NIVELES, CATEGORIAS, Proveedor, Propuesta, RUBROS_CHOICES, Notificacion # <-- Importado
 ) 
 
 # Importamos todos los formularios necesarios
@@ -74,10 +74,49 @@ def calcular_nivel_y_progreso(puntos):
 
 # --- Helper Function for Online Status ---
 def is_online(last_login):
-    """Determina si un usuario/proveedor está en línea (última conexión en los últimos 5 minutos)."""
     if not last_login:
         return False
     return (timezone.now() - last_login) < timedelta(minutes=5)
+
+# --- FUNCIÓN CENTRALIZADA PARA CHEQUEAR ESTADO DEL PERFIL ---
+def check_profile_status(comerciante):
+    default_profile_image_path = 'usuarios/img/default_profile.png'
+    has_profile_photo = comerciante.foto_perfil.name != default_profile_image_path
+    has_interests = bool(comerciante.intereses) 
+    
+    return {
+        'has_profile_photo': has_profile_photo,
+        'has_interests': has_interests,
+        'profile_incomplete': not (has_profile_photo and has_interests)
+    }
+
+# --- FUNCIÓN PARA OBTENER CONTEXTO DE NOTIFICACIONES (REUBICADA PARA VISIBILIDAD) ---
+def get_notification_context(comerciante):
+    # SIMULACIÓN: Crea notificaciones si no existen para la demo.
+    if comerciante and not Notificacion.objects.filter(comerciante=comerciante).exists():
+        Notificacion.objects.create(comerciante=comerciante, nombre="Bienvenido a la Plataforma", descripcion="¡Tu cuenta ha sido verificada con éxito!", remitente="Administración", leido=False)
+        Notificacion.objects.create(comerciante=comerciante, nombre="Nuevo Beneficio Disponible", descripcion="¡El descuento del 15% en Carnes El Gaucho está activo!", remitente="Beneficios", leido=False)
+        Notificacion.objects.create(comerciante=comerciante, nombre="Solicitud de Propuesta", descripcion="El proveedor Distribuidora X ha enviado una propuesta de servicio.", remitente="Directorio", leido=False)
+        Notificacion.objects.create(comerciante=comerciante, nombre="Comentario en tu Post", descripcion="Martín ha comentado en tu última publicación del foro.", remitente="Foro", fecha_creacion=timezone.now() - timedelta(hours=1), leido=True)
+    
+    if comerciante:
+        unread_notifications = Notificacion.objects.filter(comerciante=comerciante, leido=False)
+        unread_count = unread_notifications.count()
+    else:
+        unread_count = 0
+
+    if unread_count > 9:
+        badge_display = '9+'
+    elif unread_count > 0:
+        badge_display = str(unread_count)
+    else:
+        badge_display = None
+        
+    return {
+        'badge_display': badge_display,
+        'unread_list': Notificacion.objects.filter(comerciante=comerciante).order_by('-fecha_creacion')[:5] if comerciante else [],
+        'unread_count': unread_count
+    }
 
 
 # --- VISTAS DE AUTENTICACIÓN Y PERFIL ---
@@ -188,56 +227,20 @@ def perfil_view(request):
     if request.method == 'POST':
         action = request.POST.get('action') 
         
+        # Las acciones POST son manejadas por las nuevas vistas específicas:
         if action == 'edit_photo':
-            photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=comerciante)
-            if photo_form.is_valid():
-                photo_form.save()
-                messages.success(request, '¡Foto de perfil actualizada con éxito!')
-                return redirect('perfil')
-            else:
-                messages.error(request, 'Error al subir la foto. Asegúrate de que sea un archivo válido.')
-
+            return actualizar_foto_perfil(request)
         elif action == 'edit_contact':
-            contact_form = ContactInfoForm(request.POST, instance=comerciante) 
-            if contact_form.is_valid():
-                nuevo_email = contact_form.cleaned_data.get('email')
-                
-                if nuevo_email != comerciante.email and Comerciante.objects.filter(email=nuevo_email).exists():
-                    messages.error(request, 'Este correo ya está registrado por otro usuario.')
-                else:
-                    contact_form.save()
-                    messages.success(request, 'Datos de contacto actualizados con éxito.')
-                    current_logged_in_user.email = nuevo_email 
-                    current_logged_in_user.whatsapp = contact_form.cleaned_data.get('whatsapp')
-                    return redirect('perfil')
-            else:
-                error_msgs = [f"{field.label}: {', '.join(error for error in field.errors)}" for field in contact_form if field.errors]
-                messages.error(request, f'Error en los datos de contacto. {"; ".join(error_msgs)}')
-
+            return actualizar_info_contacto(request)
         elif action == 'edit_business':
-            business_form = BusinessDataForm(request.POST, instance=comerciante)
-            if business_form.is_valid():
-                business_form.save()
-                messages.success(request, 'Datos del negocio actualizados con éxito.')
-                current_logged_in_user.nombre_negocio = business_form.cleaned_data.get('nombre_negocio')
-                return redirect('perfil')
-            else:
-                error_msgs = [f"{field.label}: {', '.join(error for error in field.errors)}" for field in business_form if field.errors]
-                messages.error(request, f'Error en los datos del negocio. {"; ".join(error_msgs)}')
-
+            return actualizar_datos_negocio(request)
         elif action == 'edit_interests':
-            interests_form = InterestsForm(request.POST)
-            if interests_form.is_valid():
-                intereses_seleccionados = interests_form.cleaned_data['intereses']
-                intereses_csv = ','.join(intereses_seleccionados)
-                
-                comerciante.intereses = intereses_csv
-                comerciante.save(update_fields=['intereses']) 
-                
-                messages.success(request, 'Intereses actualizados con éxito.')
-                return redirect('perfil')
-            else:
-                messages.error(request, 'Error al actualizar los intereses.')
+            return actualizar_intereses(request)
+    
+    # --- LÓGICA DE ALERTA DE PERFIL INCOMPLETO ---
+    profile_status = check_profile_status(comerciante)
+    notif_context = get_notification_context(comerciante)
+    # --------------------------------------------------------
 
     photo_form = ProfilePhotoForm()
     contact_form = ContactInfoForm(instance=comerciante) 
@@ -255,8 +258,8 @@ def perfil_view(request):
         
         'puntos_actuales': comerciante.puntos,
         'nivel_actual': dict(NIVELES).get(comerciante.nivel_actual, 'Desconocido'),
-        'puntos_restantes': calcular_nivel_y_progreso(comerciante.puntos)['puntos_restantes'],
-        'progreso_porcentaje': calcular_nivel_y_progreso(comerciante.puntos)['progreso_porcentaje'],
+        'puntos_restantes': progreso['puntos_restantes'],
+        'progreso_porcentaje': progreso['progreso_porcentaje'],
         'es_proveedor': comerciante.es_proveedor, 
         
         'photo_form': photo_form,
@@ -266,9 +269,113 @@ def perfil_view(request):
         
         'intereses_actuales_codigos': [c for c in intereses_actuales_codigos if c],
         'intereses_choices_dict': intereses_choices_dict,
+        
+        # --- VARIABLES DE ESTADO/ALERTA ---
+        'has_profile_photo': profile_status['has_profile_photo'],
+        'has_interests': profile_status['has_interests'],
+        'profile_incomplete': profile_status['profile_incomplete'],
+        'badge_display': notif_context['badge_display'], # Para el navbar
+        'unread_list': notif_context['unread_list'],
     }
     
     return render(request, 'usuarios/perfil.html', context)
+
+
+# --- VISTAS DE ACCIÓN DE PERFIL (Manejan el POST de los Modales) ---
+
+def actualizar_foto_perfil(request):
+    global current_logged_in_user
+    
+    if not current_logged_in_user:
+        messages.error(request, 'Debes iniciar sesión para actualizar tu perfil.')
+        return redirect('login')
+        
+    comerciante = current_logged_in_user
+    
+    if request.method == 'POST':
+        form = ProfilePhotoForm(request.POST, request.FILES, instance=comerciante)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '¡Foto de perfil actualizada con éxito!')
+            return redirect('perfil')
+        else:
+            messages.error(request, 'Error al subir la foto. Asegúrate de que sea un archivo válido.')
+    return redirect('perfil')
+
+
+def actualizar_info_contacto(request):
+    global current_logged_in_user
+    
+    if not current_logged_in_user:
+        messages.error(request, 'Debes iniciar sesión para actualizar tu perfil.')
+        return redirect('login')
+        
+    comerciante = current_logged_in_user
+    
+    if request.method == 'POST':
+        form = ContactInfoForm(request.POST, instance=comerciante) 
+        if form.is_valid():
+            nuevo_email = form.cleaned_data.get('email')
+            
+            if nuevo_email != comerciante.email and Comerciante.objects.filter(email=nuevo_email).exists():
+                messages.error(request, 'Este correo ya está registrado por otro usuario.')
+            else:
+                form.save()
+                messages.success(request, 'Datos de contacto actualizados con éxito.')
+                current_logged_in_user.email = nuevo_email 
+                current_logged_in_user.whatsapp = form.cleaned_data.get('whatsapp')
+                return redirect('perfil')
+        else:
+            error_msgs = [f"{field.label}: {', '.join(error for error in field.errors)}" for field in form if field.errors]
+            messages.error(request, f'Error en los datos de contacto. {"; ".join(error_msgs)}')
+    return redirect('perfil')
+
+
+def actualizar_datos_negocio(request):
+    global current_logged_in_user
+    
+    if not current_logged_in_user:
+        messages.error(request, 'Debes iniciar sesión para actualizar tu perfil.')
+        return redirect('login')
+        
+    comerciante = current_logged_in_user
+    
+    if request.method == 'POST':
+        form = BusinessDataForm(request.POST, instance=comerciante)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Datos del negocio actualizados con éxito.')
+            current_logged_in_user.nombre_negocio = form.cleaned_data.get('nombre_negocio')
+            return redirect('perfil')
+        else:
+            error_msgs = [f"{field.label}: {', '.join(error for error in field.errors)}" for field in form if field.errors]
+            messages.error(request, f'Error en los datos del negocio. {"; ".join(error_msgs)}')
+    return redirect('perfil')
+
+
+def actualizar_intereses(request):
+    global current_logged_in_user
+    
+    if not current_logged_in_user:
+        messages.error(request, 'Debes iniciar sesión para actualizar tu perfil.')
+        return redirect('login')
+        
+    comerciante = current_logged_in_user
+    
+    if request.method == 'POST':
+        form = InterestsForm(request.POST)
+        if form.is_valid():
+            intereses_seleccionados = form.cleaned_data['intereses']
+            intereses_csv = ','.join(intereses_seleccionados)
+            
+            comerciante.intereses = intereses_csv
+            comerciante.save(update_fields=['intereses']) 
+            
+            messages.success(request, 'Intereses actualizados con éxito.')
+            return redirect('perfil')
+        else:
+            messages.error(request, 'Error al actualizar los intereses.')
+    return redirect('perfil')
 
 
 # --- VISTA PRINCIPAL DE LA PLATAFORMA (Foro) ---
@@ -298,6 +405,10 @@ def plataforma_comerciante_view(request):
         if not categoria_filtros or 'TODAS' in categoria_filtros:
             categoria_filtros = ['TODOS']
         
+    # Obtener estado de alerta para el navbar
+    profile_status = check_profile_status(current_logged_in_user)
+    notif_context = get_notification_context(current_logged_in_user)
+        
     context = {
         'comerciante': current_logged_in_user,
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
@@ -307,6 +418,8 @@ def plataforma_comerciante_view(request):
         'categoria_seleccionada': categoria_filtros, 
         'comentario_form': ComentarioForm(), 
         'message': f'Bienvenido a la plataforma, {current_logged_in_user.nombre_apellido.split()[0]}.',
+        'profile_incomplete': profile_status['profile_incomplete'],
+        'badge_display': notif_context['badge_display'], # Para el navbar
     }
     
     return render(request, 'usuarios/plataforma_comerciante.html', context)
@@ -350,7 +463,7 @@ def post_detail_view(request, post_id):
     global current_logged_in_user
     
     if not current_logged_in_user:
-        messages.warning(request, 'Debes iniciar sesión para ver los detalles.')
+        messages.warning(request, 'Por favor, inicia sesión para ver los detalles.')
         return redirect('login') 
         
     post = get_object_or_404(Post.objects.select_related('comerciante').annotate(
@@ -373,7 +486,7 @@ def post_detail_view(request, post_id):
 
 def add_comment_view(request, post_id):
     global current_logged_in_user
-    
+
     if not current_logged_in_user:
         messages.error(request, 'No autorizado para comentar. Inicia sesión.')
         return redirect('login')
@@ -449,14 +562,16 @@ def beneficios_view(request):
 
     no_beneficios_disponibles = not beneficios_queryset.exists()
     
+    profile_status = check_profile_status(comerciante)
+    notif_context = get_notification_context(comerciante)
+    
     context = {
-        'comerciante': comerciante,
+        'comerciante': current_logged_in_user,
         'rol_usuario': ROLES.get('COMERCIANTE', 'Usuario'), 
         
         'puntos_actuales': comerciante.puntos,
         'nivel_actual': dict(NIVELES).get(progreso['nivel_codigo'], 'Bronce'),
         'puntos_restantes': progreso['puntos_restantes'],
-        'puntos_siguiente_nivel': progreso['puntos_siguiente_nivel'],
         'progreso_porcentaje': progreso['progreso_porcentaje'],
         'proximo_nivel': progreso['proximo_nivel'],
         
@@ -465,6 +580,8 @@ def beneficios_view(request):
         'CATEGORIAS': CATEGORIAS, 
         'current_category': category_filter, 
         'current_sort': sort_by, 
+        'profile_incomplete': profile_status['profile_incomplete'],
+        'badge_display': notif_context['badge_display'], 
     }
     
     return render(request, 'usuarios/beneficios.html', context)
@@ -498,7 +615,6 @@ def proveedor_dashboard_view(request):
         messages.warning(request, 'Acceso denegado. Esta interfaz es solo para Proveedores activos.')
         return redirect('perfil')
     
-    # Obtener propuestas publicadas por el Comerciante (asumimos que el nombre del Proveedor coincide con el nombre del negocio del Comerciante)
     try:
         proveedor_qs = Proveedor.objects.get(nombre=current_logged_in_user.nombre_negocio)
         propuestas = Propuesta.objects.filter(proveedor=proveedor_qs).order_by('-id')

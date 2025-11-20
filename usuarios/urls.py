@@ -17,11 +17,17 @@ urlpatterns = [
     path('perfil/', views.perfil_view, name='perfil'),
     path('beneficios/', views.beneficios_view, name='beneficios'),
     
+    # RUTAS DE ACCIÓN DEL PERFIL (AÑADIDAS PARA SOLUCIONAR NoReverseMatch)
+    path('perfil/actualizar/foto/', views.actualizar_foto_perfil, name='actualizar_foto_perfil'),
+    path('perfil/actualizar/contacto/', views.actualizar_info_contacto, name='actualizar_info_contacto'),
+    path('perfil/actualizar/negocio/', views.actualizar_datos_negocio, name='actualizar_datos_negocio'),
+    path('perfil/actualizar/intereses/', views.actualizar_intereses, name='actualizar_intereses'),
+
     # DIRECTORIO DE PROVEEDORES
     path('directorio/', views.directorio_view, name='directorio'),
     path('directorio/<int:pk>/', views.proveedor_perfil_view, name='proveedor_perfil'),
     
-    # GESTIÓN DE ROLES (NUEVAS RUTAS AÑADIDAS)
+    # GESTIÓN DE ROLES
     path('proveedor/solicitar/', views.solicitar_rol_proveedor_view, name='solicitar_proveedor'),
     path('proveedores/dashboard/', views.proveedor_dashboard_view, name='proveedor_dashboard'),
     
