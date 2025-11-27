@@ -54,7 +54,7 @@
                     </div>
                     <nav class="hidden md:flex gap-6 text-text-muted-light dark:text-text-muted-dark font-semibold text-sm">
                         <a href="{% url 'plataforma_comerciante' %}" class="text-primary transition-colors">Plataforma</a>
-                        <a href="{% url 'beneficios' %}" class="hover:text-primary transition-colors">Beneficios</a>
+                        <a href="{% url 'directorio' %}" class="hover:text-primary transition-colors">Proveedores</a> <a href="{% url 'beneficios' %}" class="hover:text-primary transition-colors">Beneficios</a>
                         <a href="{% url 'perfil' %}" class="hover:text-primary transition-colors">Perfil</a>
                     </nav>
                 </div>
@@ -241,7 +241,7 @@
                                                         {% if post.etiquetas %}Etiquetas: {{ post.etiquetas }}{% endif %}
                                                     </p>
                                                 </div>
-                                                </div>
+                                            </div>
                                         </div>
 
                                         <div id="comments-section-{{ post.id }}" class="p-4 border-t border-gray-200 dark:border-gray-700 hidden">
@@ -271,7 +271,6 @@
                                             <div id="comment-list-{{ post.id }}" class="space-y-4">
                                                 {% for comentario in post.comentarios.all %} 
                                                     
-                                                    {# LÓGICA DE OCULTACIÓN: Oculta si el contador es mayor que 5 #}
                                                     <div class="flex py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0 comment-item-{{ post.id }} {% if forloop.counter > 5 %} hidden {% endif %}">
                                                         
                                                         <div class="shrink-0 mr-3">
@@ -446,7 +445,7 @@
             </div>
             
             <div class="pt-4 mt-auto border-t border-gray-200 dark:border-gray-700">
-                <button type="submit" class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full transition-transform hover:scale-[1.01]">
+                <button type="submit" class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-secondary text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] hover:bg-secondary/90 transition-colors duration-200">
                     <span class="truncate">Publicar en el Foro</span>
                 </button>
             </div>

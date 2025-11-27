@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
 
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <link rel="stylesheet" href="{% static 'css/style.css' %}">
 
 <script id="tailwind-config">
@@ -112,10 +115,10 @@
             </button>
         </div>
     </form>
-</div>
+  </div>
     
 
-    <div id="register-form-wrapper">
+  <div id="register-form-wrapper" class="block">
         <form class="flex flex-col h-full space-y-4 pt-2" method="POST" action="{% url 'registro' %}">
             {% csrf_token %}
             {% if form.non_field_errors %}
@@ -208,6 +211,13 @@
         const loginFormWrapper = document.getElementById('login-form-wrapper');
         const registerFormWrapper = document.getElementById('register-form-wrapper');
 
+        // 1. Inicializar Select2 en el campo de Comunas
+        $('#commune').select2({
+            placeholder: "Busca tu comuna...",
+            dropdownCssClass: 'bg-white dark:bg-gray-800',
+            width: '100%' 
+        });
+
         // Función para cambiar la pestaña activa y el formulario visible
         function switchTab(activeTab, inactiveTab, activeForm, inactiveForm) {
             // Previene que el navegador siga el href="{% url 'login' %}" o "{% url 'registro' %}"
@@ -236,18 +246,21 @@
         });
 
         // Lógica inicial para determinar qué formulario mostrar al cargar la página.
-        // Se basa en la URL actual, si incluye 'login' o 'registro', o en el estilo activo.
         const currentPath = window.location.pathname;
-        if (currentPath.includes('login') && loginTab.classList.contains('border-b-transparent')) {
-            // Si la URL es de login, pero el registro está activo por defecto en el HTML, cambiamos a login
-            switchTab(loginTab, registerTab, loginFormWrapper, registerFormWrapper);
-        } else if (currentPath.includes('registro') && registerTab.classList.contains('border-b-transparent')) {
-            // Caso de que el HTML esté invertido por error y queremos forzar registro
-            switchTab(registerTab, loginTab, registerFormWrapper, loginFormWrapper);
-        } else if (!currentPath.includes('login') && !currentPath.includes('registro')) {
-            // Si no estamos seguros, mantenemos el estado por defecto del HTML, que actualmente es Registro.
-            // Para asegurar la consistencia, ocultamos el login.
+        const isRegisterPage = currentPath.includes('registro');
+        const isLoginPage = currentPath.includes('login');
+        
+        if (isRegisterPage) {
+            // Si la URL es /registro, forzamos a mostrar el registro y ocultar el login.
             loginFormWrapper.classList.add('hidden');
+            registerFormWrapper.classList.remove('hidden');
+        } else {
+            // Si la URL es /login o la raíz, forzamos a mostrar el login y ocultar el registro.
+            loginFormWrapper.classList.remove('hidden');
+            registerFormWrapper.classList.add('hidden');
+            
+            // Y nos aseguramos de que los estilos de las pestañas sean correctos para login
+            switchTab(loginTab, registerTab, loginFormWrapper, registerFormWrapper);
         }
     });
 </script>

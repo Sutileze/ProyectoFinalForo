@@ -1,4 +1,4 @@
-# usuarios/forms.py (CONTENIDO RESTAURADO)
+# usuarios/forms.py (CONTENIDO COMPLETO MODIFICADO)
 
 from django import forms
 from .models import (
@@ -6,15 +6,55 @@ from .models import (
     RELACION_NEGOCIO_CHOICES, TIPO_NEGOCIO_CHOICES, 
     CATEGORIA_POST_CHOICES, INTERESTS_CHOICES
 ) 
-# Opciones de comuna
+# Opciones de comuna (SIMULACIÓN DE 300+ COMUNAS)
 COMUNA_CHOICES = [
-    ('', 'Selecciona tu comuna'),
-    ('ARICA', 'Arica'),
+    ('', 'Selecciona tu comuna (Buscar por nombre)'),
     ('SANTIAGO', 'Santiago'),
     ('PROVIDENCIA', 'Providencia'),
+    ('LAS_CONDES', 'Las Condes'),
+    ('ÑUÑOA', 'Ñuñoa'),
+    ('MAIPÚ', 'Maipú'),
+    ('PUENTE_ALTO', 'Puente Alto'),
+    ('ARICA', 'Arica'),
+    ('IQUIQUE', 'Iquique'),
+    ('ANTOFAGASTA', 'Antofagasta'),
+    ('COPIAPÓ', 'Copiapó'),
     ('LA_SERENA', 'La Serena'),
-    ('VALPARAISO', 'Valparaíso'),
-    ('OTRO_COMUNA', '...'),
+    ('VALPARAÍSO', 'Valparaíso'),
+    ('VIÑA_DEL_MAR', 'Viña del Mar'),
+    ('RANCAGUA', 'Rancagua'),
+    ('TALCA', 'Talca'),
+    ('CONCEPCIÓN', 'Concepción'),
+    ('TEMUCO', 'Temuco'),
+    ('VALDIVIA', 'Valdivia'),
+    ('PUERTO_MONTT', 'Puerto Montt'),
+    ('PUNTA_ARENAS', 'Punta Arenas'),
+    ('CERRILOS', 'Cerrillos'),
+    ('CERRO_NAVIA', 'Cerro Navia'),
+    ('CONCHALÍ', 'Conchalí'),
+    ('EL_BOSQUE', 'El Bosque'),
+    ('ESTACION_CENTRAL', 'Estación Central'),
+    ('HUECHURABA', 'Huechuraba'),
+    ('INDEPENDENCIA', 'Independencia'),
+    ('LA_CISTERNA', 'La Cisterna'),
+    ('LA_GRANJA', 'La Granja'),
+    ('LA_PINTANA', 'La Pintana'),
+    ('LA_REINA', 'La Reina'),
+    ('LO_BARNECHEA', 'Lo Barnechea'),
+    ('LO_ESPEJO', 'Lo Espejo'),
+    ('LO_PRADO', 'Lo Prado'),
+    ('MACUL', 'Macul'),
+    ('MELIPILLA', 'Melipilla'),
+    ('PADRE_HURTADO', 'Padre Hurtado'),
+    ('PEÑAFLOR', 'Peñaflor'),
+    ('QUILICURA', 'Quilicura'),
+    ('SAN_BERNARDO', 'San Bernardo'),
+    ('SAN_MIGUEL', 'San Miguel'),
+    ('SAN_RAMÓN', 'San Ramón'),
+    ('VITACURA', 'Vitacura'),
+    ('CHILLÁN', 'Chillán'),
+    ('COYHAIQUE', 'Coyhaique'),
+    ('OTRO_COMUNA', 'Otras Comunas (300+)')
 ]
 
 class RegistroComercianteForm(forms.ModelForm):
@@ -28,17 +68,18 @@ class RegistroComercianteForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={'placeholder': 'Repite la contraseña', 'id': 'confirm-password'}),
         max_length=255
     )
+    # MODIFICADO: Usa la lista extendida y añade la clase 'select2-enable'
     comuna_select = forms.ChoiceField(
         choices=COMUNA_CHOICES,
         label='Comuna',
-        widget=forms.Select(attrs={'id': 'commune'})
+        widget=forms.Select(attrs={'id': 'commune', 'class': 'select2-enable'}) 
     )
 
     class Meta:
         model = Comerciante
         fields = (
             'nombre_apellido', 'email', 'whatsapp',
-            'relacion_negocio', 'tipo_negocio',
+            'relacion_negocio', 'tipo_negocio', # TIPO_NEGOCIO_CHOICES (21)
         )
         widgets = {
             'nombre_apellido': forms.TextInput(attrs={'placeholder': 'Ej: Juan Pérez', 'id': 'fullname'}),
